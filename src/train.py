@@ -16,6 +16,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils.estimator_checks import check_estimator
+from sklearn.metrics import roc_curve
+from sklearn import linear_model
+
 
 from scipy.stats import gamma
 from scipy import sparse, stats
@@ -26,30 +29,33 @@ import statsmodels.discrete.discrete_model as sm
 
 
 def deconfounder(train,colnames,y01,type1,k):
-    
+
     #df = pd.DataFrame(np.arange(1,10).reshape(3,3))
     #arr = sparse.coo_matrix(([1,1,1], ([0,1,2], [1,2,0])), shape=(3,3))
     #df['newcol'] = arr.toarray().tolist()
     W,F = fm_MF(train,k)
-    name_MF = type+'_'+'MF'+'_'+str(k)
-    causal_effect,roc, gamma_ic  = check_save(W,train,colnames,y01,'MF',type1,k)
+    name_MF = type1+'_'+'MF'+'_'+str(k)
+    causal_effect,roc, gamma,cil,cip  = check_save(W,train,colnames,y01,'MF',type1,k)
     df_ce = causal_effect
     df_roc = pd.DataFrame({name_MF:roc})
-    df_gamma = pd.DataFrame({name_MF:sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()})
+    df_gamma = pd.DataFrame({'model':[name_MF],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
 
     pca = fm_PCA(train,k)
-    name_PCA = type+'_'+'PCA'+'_'+str(k)
-    causal_effect,roc, gamma_ic = check_save(pca,train,colnames,y01,'PCA',type1,k)
+    name_PCA = type1+'_'+'PCA'+'_'+str(k)
+    causal_effect,roc, gamma,cil,cip = check_save(pca,train,colnames,y01,'PCA',type1,k)
     df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
     df_roc[name_PCA]=roc
-    df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
+    aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
+    df_gamma = pd.concat([df_gamma,aux],axis=0)
+    #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
 
     ac = fm_A(train,k)
-    name_A = type+'_'+'A'+'_'+str(k)
-    causal_effect,roc, gamma_ic = check_save(pca,train,colnames,y01,'A',type1,k)
-    df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
+    name_A = type1+'_'+'A'+'_'+str(k)
+    causal_effect,roc, gamma,cil,cip = check_save(pca,train,colnames,y01,'A',type1,k)
+    df_ce =pd.merge(df_ce, causal_effect,  how='outer', left_on='genes', right_on = 'genes')
     df_roc[name_A] = roc
-    df_gamma[name_A] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
+    aux = pd.DataFrame({'model':[name_A],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
+    df_gamma = pd.concat([df_gamma,aux],axis=0)
 
     return df_ce, df_roc, df_gamma
 
@@ -139,12 +145,12 @@ def check_save(Z,train,colnames,y01,name1,name2,k):
     #roc = []
     if(test_result):
         print('Predictive Check test: PASS',colname1)
-        result , pred = outcome_model( train,colnames, Z,y01,colname1)
+        #result , pred = outcome_model( train,colnames, Z,y01,colname1)
+        result , pred, extra = outcome_model_ridge(train,colnames, Z,y01,colname1)
         if(len(pred)!=0):
             #resul.to_csv('results\\feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt', sep=';', index = False)
             #name = name1+str(k)+'_lr_'+name2
             roc = pred
-            #roc_curve_points(pred, y01, name)
         else:
             roc = []
             print('Outcome Model Does Not Coverge, results are not saved')
@@ -153,7 +159,7 @@ def check_save(Z,train,colnames,y01,name1,name2,k):
     else:
         print('Predictive Check Test: FAIL',colname1)
         np.savetxt('results\\FAIL_pcheck_feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt',[], fmt='%s')
-    return result, roc, [gamma,cil,cip]#, name1+'_'+str(k)+'_lr_'+name2
+    return result, roc, gamma,cil,cip#, name1+'_'+str(k)+'_lr_'+name2
 
 def predictive_check(X,Z):
 
@@ -266,3 +272,35 @@ def outcome_model(train,colnames , z, y01,colname1):
         output = []
         pred1 = []
     return resul, pred1
+
+def outcome_model_ridge(train, colnames,x,y01,colnames1):
+    #calculate IC with bootstrap
+    import scipy.stats as st
+    #st.norm.ppf(.95)#1.6448536269514722
+    #st.norm.cdf(1.64)#0.94949741652589625
+    alphas = np.linspace(.00001, 2, 1)
+    coef = []
+    pred = []
+    sim = 500
+    for i in range(sim):
+        rows = np.random.randint(0,train.shape[0],size=int(train.shape[0]*0.9))
+        ridge = linear_model.RidgeClassifierCV(alphas = alphas, cv =5, normalize = True)
+        ridge.fit(train[rows], y01[rows])
+        coef.append(ridge.coef_[0])
+        pred.append(ridge.predict(train))
+    coef2 = np.array(coef)
+    coef_mean = coef2.mean(axis=0)
+    coef_var = coef2.var(axis=0)
+    z_values = coef_mean/(np.sqrt(coef_var/sim))
+    coef_pvalues = st.norm.cdf(z_values)
+    coef_low = coef_mean - 1.96*np.sqrt(coef_var/sim)
+    coef_up= coef_mean + 1.96*np.sqrt(coef_var/sim)
+    
+    pred = np.array(pred)
+    pred = pred.mean(axis=0)
+    
+    resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
+    
+    extra = pd.DataFrame({'genes':colnames,colname1+'_icl': coef_low,colname1+'_icu':coef_up })
+    
+    return resul, pred, extra
