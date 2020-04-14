@@ -1,22 +1,57 @@
+import pandas as pd
+import numpy as np
+import warnings
+
 from os import listdir
 from os.path import isfile, join
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn import svm
+from sklearn.decomposition import NMF, PCA
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
+from sklearn import metrics
+from sklearn.metrics import confusion_matrix,f1_score, accuracy_score
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.utils.estimator_checks import check_estimator
 
-def deconfounder(train,colnames,y01,type,k):
+from scipy.stats import gamma
+from scipy import sparse, stats
+import statsmodels.discrete.discrete_model as sm
+
+
+
+
+
+def deconfounder(train,colnames,y01,type1,k):
+    
     #df = pd.DataFrame(np.arange(1,10).reshape(3,3))
     #arr = sparse.coo_matrix(([1,1,1], ([0,1,2], [1,2,0])), shape=(3,3))
     #df['newcol'] = arr.toarray().tolist()
     W,F = fm_MF(train,k)
-    pred  = check_save(W,train,colnames,y01,'MF',type,k)
+    name_MF = type+'_'+'MF'+'_'+str(k)
+    causal_effect,roc, gamma_ic  = check_save(W,train,colnames,y01,'MF',type1,k)
+    df_ce = causal_effect
+    df_roc = pd.DataFrame({name_MF:roc})
+    df_gamma = pd.DataFrame({name_MF:sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()})
 
     pca = fm_PCA(train,k)
-    pred = check_save(pca,train,colnames,y01,'PCA',type,k)
+    name_PCA = type+'_'+'PCA'+'_'+str(k)
+    causal_effect,roc, gamma_ic = check_save(pca,train,colnames,y01,'PCA',type1,k)
+    df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
+    df_roc[name_PCA]=roc
+    df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
 
     ac = fm_A(train,k)
-    pred = check_save(pca,train,colnames,y01,'A',type,k)
+    name_A = type+'_'+'A'+'_'+str(k)
+    causal_effect,roc, gamma_ic = check_save(pca,train,colnames,y01,'A',type1,k)
+    df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
+    df_roc[name_A] = roc
+    df_gamma[name_A] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
 
-
-        #only full
-    return outputs
+    return df_ce, df_roc, df_gamma
 
 def fm_MF(train,k):
     '''
@@ -84,9 +119,44 @@ def fm_A(train,k):
     encoded_imgs = encoder.predict(train)
     return encoded_imgs
 
+def check_save(Z,train,colnames,y01,name1,name2,k):
+    '''
+    Run predictive check function and print results
+    input:
+        z: latent features
+        train: training set
+        colnames: genes names
+        y01: binary classification
+        name: name for the file
+        k: size of the latent features (repetitive)
+    output:
+        save features on results folder or print that it failed
+        return the predicted values for the training data on the outcome model
+    '''
+    colname1 = name2+'_'+name1+'_'+str(k)
+    gamma,cil,cip, test_result = predictive_check(train,Z)
+    #result = []
+    #roc = []
+    if(test_result):
+        print('Predictive Check test: PASS',colname1)
+        result , pred = outcome_model( train,colnames, Z,y01,colname1)
+        if(len(pred)!=0):
+            #resul.to_csv('results\\feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt', sep=';', index = False)
+            #name = name1+str(k)+'_lr_'+name2
+            roc = pred
+            #roc_curve_points(pred, y01, name)
+        else:
+            roc = []
+            print('Outcome Model Does Not Coverge, results are not saved')
+            np.savetxt('results\\FAIL_outcome_feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt',[], fmt='%s')
+
+    else:
+        print('Predictive Check Test: FAIL',colname1)
+        np.savetxt('results\\FAIL_pcheck_feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt',[], fmt='%s')
+    return result, roc, [gamma,cil,cip]#, name1+'_'+str(k)+'_lr_'+name2
+
 def predictive_check(X,Z):
-    from sklearn.linear_model import LinearRegression
-    from sklearn.model_selection import train_test_split
+
     '''
     This function is agnostic to the method.
     Use a Linear Model X_m = f(Z), save the proportion
@@ -121,6 +191,78 @@ def predictive_check(X,Z):
     m, se = np.mean(v_nul), np.std(v_nul)
     h = se * stats.t.ppf((1 + 0.95) / 2., n-1)
     if m-h<= np.mean(v_obs) and np.mean(v_obs) <= m+h:
-        return v_obs, True
+        return np.mean(v_obs), m-h, m+h, True
     else:
-        return v_obs, False
+        return round(np.mean(v_obs),4), round(m-h,4), round(m+h,4), False
+
+def outcome_model(train,colnames , z, y01,colname1):
+    '''
+    Outcome Model + logistic regression
+    I need to use less features for each model, so i can run several
+    batches of the model using the latent features. They should account
+    for all cofounders from the hole data
+
+    pred: is the average value thought all the models
+
+    parameters:
+        train: dataset with original features jxv
+        z: latent features, jxk
+        y01: response, jx1
+
+    return: list of significant coefs
+    '''
+    #if ac, change 25 to 9
+    aux = train.shape[0]//9
+
+
+    lim = 0
+    col_new_order = []
+    col_pvalue = []
+    col_coef = []
+
+    pred = []
+    warnings.filterwarnings("ignore")
+
+
+    #while flag == 0 and lim<=50:
+    if train.shape[1]>aux:
+        columns_split = np.random.randint(0,train.shape[1]//aux,train.shape[1] )
+
+    #print('Aux value: ',aux)
+    flag1 = 0
+    for cs in range(0,train.shape[1]//aux):
+
+        cols = np.arange(train.shape[1])[np.equal(columns_split,cs)]
+        colnames_sub = colnames[np.equal(columns_split,cs)]
+        col_new_order.extend(colnames_sub)
+        X = pd.concat([pd.DataFrame(train[:,cols]),pd.DataFrame(z)], axis= 1)
+        X.columns = range(0,X.shape[1])
+        flag = 0
+        lim = 0
+        while flag==0 and lim <= 50:
+            try:
+                output = sm.Logit(y01, X).fit(disp=0)
+                pred.append(output.predict(X))
+                flag = 1
+                flag1 = 1
+            except:
+                flag = 0
+                lim = lim+1
+                print('--------- Trying again----------- ',colname1, aux,cs)
+
+        if flag == 1:
+            col_pvalue.extend(output.pvalues[0:(len(output.pvalues)-z.shape[1])])
+            col_coef.extend(output.params[0:(len(output.pvalues)-z.shape[1])])
+        else:
+            col_pvalue.extend(np.repeat(0,len(colnames_sub)))
+            col_coef.extend(np.repeat(0,len(colnames_sub)))
+
+    warnings.filterwarnings("default")
+    #prediction only for the ones with models that converge
+    pred1 =  np.mean(pred,axis = 0)
+    resul =  pd.concat([pd.DataFrame(col_new_order),pd.DataFrame(col_pvalue), pd.DataFrame(col_coef)], axis = 1)
+    resul.columns = ['genes',colname1+'_pvalue',colname1+'_coef']
+    if flag1 == 0:
+        output = []
+        pred1 = []
+    return resul, pred1
