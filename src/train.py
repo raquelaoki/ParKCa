@@ -49,13 +49,13 @@ def deconfounder(train,colnames,y01,type1,k):
     df_gamma = pd.concat([df_gamma,aux],axis=0)
     #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
 
-    ac = fm_A(train,k)
-    name_A = type1+'_'+'A'+'_'+str(k)
-    causal_effect,roc, gamma,cil,cip = check_save(pca,train,colnames,y01,'A',type1,k)
-    df_ce =pd.merge(df_ce, causal_effect,  how='outer', left_on='genes', right_on = 'genes')
-    df_roc[name_A] = roc
-    aux = pd.DataFrame({'model':[name_A],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
-    df_gamma = pd.concat([df_gamma,aux],axis=0)
+    #ac = fm_A(train,k)
+    #name_A = type1+'_'+'A'+'_'+str(k)
+    #causal_effect,roc, gamma,cil,cip = check_save(pca,train,colnames,y01,'A',type1,k)
+    #df_ce =pd.merge(df_ce, causal_effect,  how='outer', left_on='genes', right_on = 'genes')
+    #df_roc[name_A] = roc
+    #aux = pd.DataFrame({'model':[name_A],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
+    #df_gamma = pd.concat([df_gamma,aux],axis=0)
 
     return df_ce, df_roc, df_gamma
 
@@ -84,46 +84,13 @@ def fm_PCA(train,k):
         1 matrix
     '''
     X = StandardScaler().fit_transform(train)
-    model = PCA(n_components=k)
+    #model = PCA(n_components=k)
+    model = PCA(svd_solver='full', n_components='mle')
     principalComponents = model.fit_transform(X)
     principalDf = pd.DataFrame(data = principalComponents)
 
     return principalDf
 
-def fm_A(train,k):
-    from keras.layers import Input, Dense
-    from keras.models import Model
-    '''
-    Autoencoder to extrac latent features
-    Parameters:
-        train: dataset
-        k: latent Dimension
-        run: True/False
-    Return:
-        1 matrix
-    References
-    #https://www.guru99.com/autoencoder-deep-learning.html
-    #https://blog.keras.io/building-autoencoders-in-keras.html
-    '''
-    x_train, x_test = train_test_split(train, test_size = 0.3,random_state = 22)
-    print(x_train.shape, x_test.shape, train.shape)
-    ii = x_train.shape[1]
-    input_img = Input(shape=(ii,))
-    encoding_dim = 20
-    encoded = Dense(encoding_dim, activation='sigmoid')(input_img) #change relu
-    # "decoded" is the lossy reconstruction of the input
-    decoded = Dense(ii, activation='sigmoid')(encoded)
-
-    # this model maps an input to its reconstruction
-    autoencoder = Model(input_img, decoded)
-    encoder = Model(input_img, encoded)
-
-
-    autoencoder.compile(optimizer='sgd', loss='mean_squared_error')
-    autoencoder.fit(x_train, x_train, epochs=50, batch_size=256, shuffle=True, validation_data=(x_test, x_test))
-
-    encoded_imgs = encoder.predict(train)
-    return encoded_imgs
 
 def check_save(Z,train,colnames,y01,name1,name2,k):
     '''
@@ -295,12 +262,12 @@ def outcome_model_ridge(train, colnames,x,y01,colnames1):
     coef_pvalues = st.norm.cdf(z_values)
     coef_low = coef_mean - 1.96*np.sqrt(coef_var/sim)
     coef_up= coef_mean + 1.96*np.sqrt(coef_var/sim)
-    
+
     pred = np.array(pred)
     pred = pred.mean(axis=0)
-    
+
     resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
-    
+
     extra = pd.DataFrame({'genes':colnames,colname1+'_icl': coef_low,colname1+'_icu':coef_up })
-    
+
     return resul, pred, extra
