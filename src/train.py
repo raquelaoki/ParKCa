@@ -24,7 +24,11 @@ from scipy.stats import gamma
 from scipy import sparse, stats
 import statsmodels.discrete.discrete_model as sm
 
+import tensorflow as tf #.compat.v2
+import tensorflow_probability as tfp
+from tensorflow_probability import distributions as tfd
 
+import functools
 
 
 
@@ -74,23 +78,119 @@ def fm_MF(train,k):
 
     return W, H
 
-def fm_PCA(train,k):
-    '''
-    PCA to extrac latent features
-    Parameters:
-        train: dataset
-        k: latent Dimension
-    Return:
-        1 matrix
-    '''
-    X = StandardScaler().fit_transform(train)
-    #model = PCA(n_components=k)
-    model = PCA(svd_solver='full', n_components='mle')
-    principalComponents = model.fit_transform(X)
-    principalDf = pd.DataFrame(data = principalComponents)
 
-    return principalDf
 
+def fm_PPCA(train,latent_dim):
+    num_datapoints, data_dim = train.shape
+    x_train = tf.convert_to_tensor(np.transpose(train),dtype = tf.float32)
+
+
+    Root = tfd.JointDistributionCoroutine.Root
+    def probabilistic_pca(data_dim, latent_dim, num_datapoints, stddv_datapoints):
+      w = yield Root(tfd.Independent(
+          tfd.Normal(loc=tf.zeros([data_dim, latent_dim]),
+                     scale=2.0 * tf.ones([data_dim, latent_dim]),
+                     name="w"), reinterpreted_batch_ndims=2))
+      z = yield Root(tfd.Independent(
+          tfd.Normal(loc=tf.zeros([latent_dim, num_datapoints]),
+                     scale=tf.ones([latent_dim, num_datapoints]),
+                     name="z"), reinterpreted_batch_ndims=2))
+      x = yield tfd.Independent(tfd.Normal(
+          loc=tf.matmul(w, z),
+          scale=stddv_datapoints,
+          name="x"), reinterpreted_batch_ndims=2)
+
+    #data_dim, num_datapoints = x_train.shape
+    stddv_datapoints = 1
+
+    concrete_ppca_model = functools.partial(probabilistic_pca,
+        data_dim=data_dim,
+        latent_dim=latent_dim,
+        num_datapoints=num_datapoints,
+        stddv_datapoints=stddv_datapoints)
+
+    model = tfd.JointDistributionCoroutine(concrete_ppca_model)
+
+    #actual_w, actual_z, x_train = model.sample()
+
+
+    w = tf.Variable(np.ones([data_dim, latent_dim]), dtype=tf.float32)
+    z = tf.Variable(np.ones([latent_dim, num_datapoints]), dtype=tf.float32)
+
+    target_log_prob_fn = lambda w, z: model.log_prob((w, z, x_train))
+    losses = tfp.math.minimize(lambda: -target_log_prob_fn(w, z),
+                               optimizer=tf.optimizers.Adam(learning_rate=0.05),
+                               num_steps=200)
+
+    qw_mean = tf.Variable(np.ones([data_dim, latent_dim]), dtype=tf.float32)
+    qz_mean = tf.Variable(np.ones([latent_dim, num_datapoints]), dtype=tf.float32)
+    qw_stddv = tf.nn.softplus(tf.Variable(-4 * np.ones([data_dim, latent_dim]), dtype=tf.float32))
+    qz_stddv = tf.nn.softplus(tf.Variable(-4 * np.ones([latent_dim, num_datapoints]), dtype=tf.float32))
+    def factored_normal_variational_model():
+      qw = yield Root(tfd.Independent(tfd.Normal(
+          loc=qw_mean, scale=qw_stddv, name="qw"), reinterpreted_batch_ndims=2))
+      qz = yield Root(tfd.Independent(tfd.Normal(
+          loc=qz_mean, scale=qz_stddv, name="qz"), reinterpreted_batch_ndims=2))
+
+    surrogate_posterior = tfd.JointDistributionCoroutine(
+        factored_normal_variational_model)
+
+    losses = tfp.vi.fit_surrogate_posterior(
+        target_log_prob_fn,
+        surrogate_posterior=surrogate_posterior,
+        optimizer=tf.optimizers.Adam(learning_rate=0.1),
+        num_steps=400)
+
+
+    x_generated = []
+    for i in range(50):
+        _, _, x_g = model.sample(value=surrogate_posterior.sample(1))
+        x_generated.append(x_g.numpy())
+    
+    w, z = surrogate_posterior.variables
+
+    return w.numpy(),z.numpy(), x_generated
+
+def daHoldout(train,holdout_portion):
+    num_datapoints, data_dim = train.shape
+    n_holdout = int(holdout_portion * num_datapoints * data_dim)
+
+    holdout_row = np.random.randint(num_datapoints, size=n_holdout)
+    holdout_col = np.random.randint(data_dim, size=n_holdout)
+    holdout_mask = (sparse.coo_matrix((np.ones(n_holdout), \
+                                (holdout_row, holdout_col)), \
+                                shape = train.shape)).toarray()
+
+    holdout_subjects = np.unique(holdout_row)
+    holdout_mask = np.minimum(1, holdout_mask)
+
+    x_train = np.multiply(1-holdout_mask, train)
+    x_vad = np.multiply(holdout_mask, train)
+    return x_train, x_vad,holdout_mask,holdout_row
+
+def daPredCheck(x_val,x_gen,w,z,holdout_mask,holdout_row):
+    obs_ll = []
+    rep_ll = []
+    x = np.multiply(np.transpose(np.dot(w,z)), holdout_mask)
+    pvals = np.zeros(z.shape[1])
+    for i in range(len(x_gen)):
+        generate = np.transpose(x_gen[i])
+        holdout_sample = np.multiply(generate, holdout_mask)
+
+        x_val_current = np.mean(stats.norm(holdout_sample, 1).logpdf(x_val), axis=1)
+        x_gen_current = np.mean(stats.norm(holdout_sample, 1).logpdf(x),axis=1)
+
+        #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,3],x_val[0,3],stats.norm(holdout_sample, 1).logpdf(x)[0,3],x[0,3],' g:',holdout_sample[0,3])
+        #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,2],x_val[0,2],stats.norm(holdout_sample, 1).logpdf(x)[0,2],x[0,2],' g:',holdout_sample[0,2])
+
+        obs_ll.append(x_val_current)
+        rep_ll.append(x_gen_current)
+        pvals =  pvals + np.array(x_val_current<x_val_current)*(1)
+
+    pvals = pvals/x_gen.shape[0]
+    holdout_subjects = np.unique(holdout_row)
+    overall_pval = np.mean(pvals[holdout_subjects])
+    return overall_pval,obs_ll,rep_ll
 
 def check_save(Z,train,colnames,y01,name1,name2,k):
     '''
