@@ -16,7 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils.estimator_checks import check_estimator
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve,roc_auc_score
 from sklearn import linear_model
 
 
@@ -44,33 +44,52 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
 
     '''
     x_train, x_val, holdout_mask = daHoldout(train,0.2)
-
-    pca,z, x_gen = fm_PPCA(x_train,k)
-    filename = name+'_' +str(k)
-    pvalue= daPredCheck(x_val,x_gen,pca,z, holdout_mask)
+    w,z, x_gen = fm_PPCA(x_train,k,True)
+    filename = 'da_ppca_lr_' +str(k)+'_'+name
+    pvalue= daPredCheck(x_val,x_gen,w,z, holdout_mask)
+    alpha = 0.05 #for the IC test on outcome model 
+    low = stats.norm(0,1).ppf(alpha/2)
+    up = stats.norm(0,1).ppf(1-alpha/2)
+    #To speed up, I wont fit the PPCA to each boostrap iteration
+    del x_gen
     if 0.1 < pvalue and pvalue < 0.9:
-        print('Pass Predictive Check')
+        print('Pass Predictive Check:', name )
         coef= []
+        pca = np.transpose(z)
         for i in range(b):
+            #print(i)
             rows = np.random.choice(train.shape[0], int(train.shape[0]*0.85), replace=False)
             X = train[rows, :]
             y01_b = y01[rows]
-            w,pca, x_gen = fm_PPCA(X,k)
+            pca_b = pca[rows,:] 
+            #w,pca, x_gen = fm_PPCA(X,k)
             #outcome model
-            coef_, _ = outcome_model_ridge(X,colnames, pca,y01_b,False,name)
+            coef_, _ = outcome_model_ridge(X,colnames, pca_b,y01_b,False,name)
             coef.append(coef_)
+        
+        
+        coef = np.matrix(coef)
+        #Building IC 
+        coef_m = np.asarray(np.mean(coef,axis=0)).reshape(-1)
+        coef_var = np.asarray(np.var(coef,axis=0)).reshape(-1)
+        coef_z = np.divide(coef_m,np.sqrt(coef_var/b))
+        #1 if significative and 0 otherwise
+        coef_z = [ 1 if c>low and c<up else 0 for c in coef_z ] 
+        
         
         #https://abdalimran.github.io/2019-06-01/Drawing-multiple-ROC-Curves-in-a-single-plot
         #Calculating ROC with entire train    
-        w,pca, x_gen = fm_PPCA(train,k)    
-        _,roc =  outcome_model_ridge(train,colnames, pca,y01,True,name)
+        del X,pca,pca_b,y01_b
+        del coef_var, coef, coef_
+        w,z, x_gen = fm_PPCA(train,k,False)    
+        _,roc =  outcome_model_ridge(train,colnames, np.transpose(z),y01,True,name)
         #df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
         #df_roc[name_PCA]=roc
         #aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
         #df_gamma = pd.concat([df_gamma,aux],axis=0)
         #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
 
-    return coef, roc
+    return np.multiply(coef_m,coef_z), roc
 
 def fm_MF(train,k):
     '''
@@ -87,7 +106,8 @@ def fm_MF(train,k):
 
     return W, H
 
-def fm_PPCA(train,latent_dim):
+def fm_PPCA(train,latent_dim, flag_pred):
+    #source: https://github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_PCA.ipynb
     num_datapoints, data_dim = train.shape
     x_train = tf.convert_to_tensor(np.transpose(train),dtype = tf.float32)
 
@@ -149,12 +169,14 @@ def fm_PPCA(train,latent_dim):
         num_steps=400)
 
 
+    
     x_generated = []
-    for i in range(50):
-        _, _, x_g = model.sample(value=surrogate_posterior.sample(1))
-        x_generated.append(x_g.numpy()[0])
-
-    w, z = surrogate_posterior.variables
+    if flag_pred:
+        for i in range(50):
+            _, _, x_g = model.sample(value=surrogate_posterior.sample(1))
+            x_generated.append(x_g.numpy()[0])
+    
+    w, z = surrogate_posterior.variables        
 
     return w.numpy(),z.numpy(), x_generated
 
@@ -212,7 +234,7 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     -name: roc name file
     '''
     import scipy.stats as st
-    x_aug = np.concatenate([x,np.transpose(x_latent)],axis=1)
+    x_aug = np.concatenate([x,x_latent],axis=1)
     ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
     ridge.fit(x_aug, y01_b)
     coef = ridge.coef_[0][0:x.shape[1]]
