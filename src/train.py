@@ -32,36 +32,38 @@ import functools
 
 
 
-def deconfounder(train,colnames,y01,type1,k):
+def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
+    '''
+    input:
+    - train dataset
+    - colnames or possible causes
+    - y01: outcome
+    - name: file name
+    - k: dimension of latent space
+    - b: number of bootstrap samples
 
-    #df = pd.DataFrame(np.arange(1,10).reshape(3,3))
-    #arr = sparse.coo_matrix(([1,1,1], ([0,1,2], [1,2,0])), shape=(3,3))
-    #df['newcol'] = arr.toarray().tolist()
-    W,F = fm_MF(train,k)
-    name_MF = type1+'_'+'MF'+'_'+str(k)
-    causal_effect,roc, gamma,cil,cip  = check_save(W,train,colnames,y01,'MF',type1,k)
-    df_ce = causal_effect
-    df_roc = pd.DataFrame({name_MF:roc})
-    df_gamma = pd.DataFrame({'model':[name_MF],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
+    '''
+    x_train, x_val, holdout_mask,holdout_row = models.daHoldout(train,0.2)
 
-    pca = fm_PCA(train,k)
-    name_PCA = type1+'_'+'PCA'+'_'+str(k)
-    causal_effect,roc, gamma,cil,cip = check_save(pca,train,colnames,y01,'PCA',type1,k)
-    df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
-    df_roc[name_PCA]=roc
-    aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
-    df_gamma = pd.concat([df_gamma,aux],axis=0)
-    #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
+    pca,z, x_gen = models.fm_PPCA(x_train,k)
+    filename = name+'_' +str(k)
+    pvalue= models.daPredCheck(x_val,x_gen,pca,z, holdout_mask,holdout_row)
+    if 0.1 < pvalue and pvalue < 0.9:
+        print('Pass Predictive Check')
+        for i in range(b):
+            rows = np.random.choice(train.shape[0], int(train.shape[0]*0.85), replace=False)
+            X = train[rows, :]
+            y01_b = y01[rows]
+            w,pca, x_gen = models.fm_PPCA(X,k)
+            #outcome model
+            result , pred, extra = outcome_model_ridge(X,colnames, Z,y01_b,False)
+        #df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
+        #df_roc[name_PCA]=roc
+        #aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
+        #df_gamma = pd.concat([df_gamma,aux],axis=0)
+        #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
 
-    #ac = fm_A(train,k)
-    #name_A = type1+'_'+'A'+'_'+str(k)
-    #causal_effect,roc, gamma,cil,cip = check_save(pca,train,colnames,y01,'A',type1,k)
-    #df_ce =pd.merge(df_ce, causal_effect,  how='outer', left_on='genes', right_on = 'genes')
-    #df_roc[name_A] = roc
-    #aux = pd.DataFrame({'model':[name_A],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
-    #df_gamma = pd.concat([df_gamma,aux],axis=0)
-
-    return df_ce, df_roc, df_gamma
+    return pvalue
 
 def fm_MF(train,k):
     '''
@@ -77,8 +79,6 @@ def fm_MF(train,k):
     H = model.components_
 
     return W, H
-
-
 
 def fm_PPCA(train,latent_dim):
     num_datapoints, data_dim = train.shape
@@ -146,7 +146,7 @@ def fm_PPCA(train,latent_dim):
     for i in range(50):
         _, _, x_g = model.sample(value=surrogate_posterior.sample(1))
         x_generated.append(x_g.numpy()[0])
-    
+
     w, z = surrogate_posterior.variables
 
     return w.numpy(),z.numpy(), x_generated
@@ -181,7 +181,7 @@ def daPredCheck(x_val,x_gen,w,z,holdout_mask,holdout_row):
     x_val1 = x_val1[holdout_mask1==1]
     x1= x1[holdout_mask1==1]
     pvals =[]
-  
+
     for i in range(len(x_gen)):
         generate = np.transpose(x_gen[i])
         holdout_sample = np.multiply(generate, holdout_mask)
@@ -189,15 +189,15 @@ def daPredCheck(x_val,x_gen,w,z,holdout_mask,holdout_row):
         holdout_sample = holdout_sample[holdout_mask1==1]
         x_val_current = stats.norm(holdout_sample, 1).logpdf(x_val1)
         x_gen_current = stats.norm(holdout_sample, 1).logpdf(x1)
-    
+
         #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,3],x_val[0,3],stats.norm(holdout_sample, 1).logpdf(x)[0,3],x[0,3],' g:',holdout_sample[0,3])
         #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,0],x_val[0,0],stats.norm(holdout_sample, 1).logpdf(x)[0,0],x[0,0],' g:',holdout_sample[0,2])
-    
+
         #obs_ll.append(x_val_current)
         #rep_ll.append(x_gen_current)
         pvals.append(np.mean(np.array(x_val_current<x_gen_current)))
-    
-    
+
+
     overall_pval = np.mean(pvals)
     return overall_pval
 
@@ -237,146 +237,34 @@ def check_save(Z,train,colnames,y01,name1,name2,k):
         np.savetxt('results\\FAIL_pcheck_feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt',[], fmt='%s')
     return result, roc, gamma,cil,cip#, name1+'_'+str(k)+'_lr_'+name2
 
-def predictive_check(X,Z):
-
+def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
-    This function is agnostic to the method.
-    Use a Linear Model X_m = f(Z), save the proportion
-    of times that the pred(z_test)<X_m(test) for each feature m.
-    Compare with the proportion of the null model mean(x_m(train)))<X_m(test)
-    Create an Confidence interval for the null model, check if the average value
-    across the predicted values using LM is inside this interval
-
-    Sample a few columns (300 hundred?) to do this math
-
-    Parameters:
-        X: orginal features
-        Z: latent (either the reconstruction of X or lower dimension)
-    Return:
-        v_obs values and result of the test
+    input:
+    - x: training set
+    - x_latent: output from factor model
+    - colnames: x colnames or possible causes
+    - y01: outcome
+    -name: roc name file
     '''
-    #If the number of columns is too large, select a subset of columns instead
-    if X.shape[1]>10000:
-        X = X[:,np.random.randint(0,X.shape[1],10000)]
-
-    v_obs = []
-    v_nul = []
-    for i in range(X.shape[1]):
-        Z_train, Z_test, X_train, X_test = train_test_split(Z, X[:,i], test_size=0.3)
-        model = LinearRegression().fit(Z_train, X_train)
-        X_pred = model.predict(Z_test)
-        v_obs.append(np.less(X_test, X_pred).sum()/len(X_test))
-        v_nul.append(np.less(X_test, X_train.mean(),).sum()/len(X_test))
-
-    #Create the Confidence interval
-    n = len(v_nul)
-    m, se = np.mean(v_nul), np.std(v_nul)
-    h = se * stats.t.ppf((1 + 0.95) / 2., n-1)
-    if m-h<= np.mean(v_obs) and np.mean(v_obs) <= m+h:
-        return np.mean(v_obs), m-h, m+h, True
-    else:
-        return round(np.mean(v_obs),4), round(m-h,4), round(m+h,4), False
-
-def outcome_model(train,colnames , z, y01,colname1):
-    '''
-    Outcome Model + logistic regression
-    I need to use less features for each model, so i can run several
-    batches of the model using the latent features. They should account
-    for all cofounders from the hole data
-
-    pred: is the average value thought all the models
-
-    parameters:
-        train: dataset with original features jxv
-        z: latent features, jxk
-        y01: response, jx1
-
-    return: list of significant coefs
-    '''
-    #if ac, change 25 to 9
-    aux = train.shape[0]//9
-
-
-    lim = 0
-    col_new_order = []
-    col_pvalue = []
-    col_coef = []
-
-    pred = []
-    warnings.filterwarnings("ignore")
-
-
-    #while flag == 0 and lim<=50:
-    if train.shape[1]>aux:
-        columns_split = np.random.randint(0,train.shape[1]//aux,train.shape[1] )
-
-    #print('Aux value: ',aux)
-    flag1 = 0
-    for cs in range(0,train.shape[1]//aux):
-
-        cols = np.arange(train.shape[1])[np.equal(columns_split,cs)]
-        colnames_sub = colnames[np.equal(columns_split,cs)]
-        col_new_order.extend(colnames_sub)
-        X = pd.concat([pd.DataFrame(train[:,cols]),pd.DataFrame(z)], axis= 1)
-        X.columns = range(0,X.shape[1])
-        flag = 0
-        lim = 0
-        while flag==0 and lim <= 50:
-            try:
-                output = sm.Logit(y01, X).fit(disp=0)
-                pred.append(output.predict(X))
-                flag = 1
-                flag1 = 1
-            except:
-                flag = 0
-                lim = lim+1
-                print('--------- Trying again----------- ',colname1, aux,cs)
-
-        if flag == 1:
-            col_pvalue.extend(output.pvalues[0:(len(output.pvalues)-z.shape[1])])
-            col_coef.extend(output.params[0:(len(output.pvalues)-z.shape[1])])
-        else:
-            col_pvalue.extend(np.repeat(0,len(colnames_sub)))
-            col_coef.extend(np.repeat(0,len(colnames_sub)))
-
-    warnings.filterwarnings("default")
-    #prediction only for the ones with models that converge
-    pred1 =  np.mean(pred,axis = 0)
-    resul =  pd.concat([pd.DataFrame(col_new_order),pd.DataFrame(col_pvalue), pd.DataFrame(col_coef)], axis = 1)
-    resul.columns = ['genes',colname1+'_pvalue',colname1+'_coef']
-    if flag1 == 0:
-        output = []
-        pred1 = []
-    return resul, pred1
-
-def outcome_model_ridge(train, colnames,x,y01,colnames1):
-    #calculate IC with bootstrap
     import scipy.stats as st
-    #st.norm.ppf(.95)#1.6448536269514722
-    #st.norm.cdf(1.64)#0.94949741652589625
-    alphas = np.linspace(.00001, 2, 1)
-    coef = []
-    pred = []
-    sim = 500
-    for i in range(sim):
-        rows = np.random.randint(0,train.shape[0],size=int(train.shape[0]*0.9))
-        ridge = linear_model.RidgeClassifierCV(alphas = alphas, cv =5, normalize = True)
-        ridge.fit(train[rows], y01[rows])
-        coef.append(ridge.coef_[0])
-        pred.append(ridge.predict(train))
-    coef2 = np.array(coef)
-    coef_mean = coef2.mean(axis=0)
-    coef_var = coef2.var(axis=0)
-    z_values = coef_mean/(np.sqrt(coef_var/sim))
-    coef_pvalues = st.norm.cdf(z_values)
-    coef_low = coef_mean - 1.96*np.sqrt(coef_var/sim)
-    coef_up= coef_mean + 1.96*np.sqrt(coef_var/sim)
+    x_aug = np.concatenate([x,np.transpose(x_latent)],axis=1)
+    ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
+    ridge.fit(x_aug, y01_b)
+    coef = ridge.coef_[0][0:X.shape[1]]
+    
+    if roc_flag: 
+        pred = ridge.decision_function(x_aug)
+        fpr, tpr, _ = roc_curve(y01_b, pred)
+        auc = roc_auc_score(y01_b, pred)
+        roc = {'classifiers':cls.name,
+               'fpr':fpr, 
+               'tpr':tpr, 
+               'auc':auc}
 
-    pred = np.array(pred)
-    pred = pred.mean(axis=0)
+    else:
+        roc = {}
+    #resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
 
-    resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
+    #extra = pd.DataFrame({'genes':colnames,colname1+'_icl': coef_low,colname1+'_icu':coef_up })
 
-    extra = pd.DataFrame({'genes':colnames,colname1+'_icl': coef_low,colname1+'_icu':coef_up })
-
-    return resul, pred, extra
+    return coef, roc
