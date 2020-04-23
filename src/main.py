@@ -34,8 +34,8 @@ if APPLICATION1:
          train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
          x_train, x_val, holdout_mask,holdout_row = models.daHoldout(train,0.2)
          w,z, x_gen = models.fm_PPCA(x_train,10)
-         pvalue, obs, gen = models.daPredCheck(x_val,x_gen,w,z, holdout_mask,holdout_row)
-         print(pvalue)
+         pvalue= models.daPredCheck(x_val,x_gen,w,z, holdout_mask,holdout_row)
+         #print(pvalue)
          
     else:     
     #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2

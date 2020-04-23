@@ -145,7 +145,7 @@ def fm_PPCA(train,latent_dim):
     x_generated = []
     for i in range(50):
         _, _, x_g = model.sample(value=surrogate_posterior.sample(1))
-        x_generated.append(x_g.numpy())
+        x_generated.append(x_g.numpy()[0])
     
     w, z = surrogate_posterior.variables
 
@@ -169,28 +169,37 @@ def daHoldout(train,holdout_portion):
     return x_train, x_vad,holdout_mask,holdout_row
 
 def daPredCheck(x_val,x_gen,w,z,holdout_mask,holdout_row):
-    obs_ll = []
-    rep_ll = []
+    #obs_ll = []
+    #rep_ll = []
     x = np.multiply(np.transpose(np.dot(w,z)), holdout_mask)
-    pvals = np.zeros(z.shape[1])
+    holdout_subjects = np.unique(holdout_row)
+    holdout_mask1 = np.asarray(holdout_mask).reshape(-1)
+    #x_val1 = np.squeeze(np.asarray(x_val))
+    x_val1 = np.asarray(x_val).reshape(-1)
+    #x_val1 = np.reshape(x_val, [1,-1])[0]
+    x1 = np.asarray(x).reshape(-1)
+    x_val1 = x_val1[holdout_mask1==1]
+    x1= x1[holdout_mask1==1]
+    pvals =[]
+  
     for i in range(len(x_gen)):
         generate = np.transpose(x_gen[i])
         holdout_sample = np.multiply(generate, holdout_mask)
-
-        x_val_current = np.mean(stats.norm(holdout_sample, 1).logpdf(x_val), axis=1)
-        x_gen_current = np.mean(stats.norm(holdout_sample, 1).logpdf(x),axis=1)
-
+        holdout_sample = np.asarray(holdout_sample).reshape(-1)
+        holdout_sample = holdout_sample[holdout_mask1==1]
+        x_val_current = stats.norm(holdout_sample, 1).logpdf(x_val1)
+        x_gen_current = stats.norm(holdout_sample, 1).logpdf(x1)
+    
         #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,3],x_val[0,3],stats.norm(holdout_sample, 1).logpdf(x)[0,3],x[0,3],' g:',holdout_sample[0,3])
-        #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,2],x_val[0,2],stats.norm(holdout_sample, 1).logpdf(x)[0,2],x[0,2],' g:',holdout_sample[0,2])
-
-        obs_ll.append(x_val_current)
-        rep_ll.append(x_gen_current)
-        pvals =  pvals + np.array(x_val_current<x_val_current)*(1)
-
-    pvals = pvals/x_gen.shape[0]
-    holdout_subjects = np.unique(holdout_row)
-    overall_pval = np.mean(pvals[holdout_subjects])
-    return overall_pval,obs_ll,rep_ll
+        #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,0],x_val[0,0],stats.norm(holdout_sample, 1).logpdf(x)[0,0],x[0,0],' g:',holdout_sample[0,2])
+    
+        #obs_ll.append(x_val_current)
+        #rep_ll.append(x_gen_current)
+        pvals.append(np.mean(np.array(x_val_current<x_gen_current)))
+    
+    
+    overall_pval = np.mean(pvals)
+    return overall_pval
 
 def check_save(Z,train,colnames,y01,name1,name2,k):
     '''
