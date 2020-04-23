@@ -43,27 +43,34 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     - b: number of bootstrap samples
 
     '''
-    x_train, x_val, holdout_mask,holdout_row = models.daHoldout(train,0.2)
+    x_train, x_val, holdout_mask = daHoldout(train,0.2)
 
-    pca,z, x_gen = models.fm_PPCA(x_train,k)
+    pca,z, x_gen = fm_PPCA(x_train,k)
     filename = name+'_' +str(k)
-    pvalue= models.daPredCheck(x_val,x_gen,pca,z, holdout_mask,holdout_row)
+    pvalue= daPredCheck(x_val,x_gen,pca,z, holdout_mask)
     if 0.1 < pvalue and pvalue < 0.9:
         print('Pass Predictive Check')
+        coef= []
         for i in range(b):
             rows = np.random.choice(train.shape[0], int(train.shape[0]*0.85), replace=False)
             X = train[rows, :]
             y01_b = y01[rows]
-            w,pca, x_gen = models.fm_PPCA(X,k)
+            w,pca, x_gen = fm_PPCA(X,k)
             #outcome model
-            result , pred, extra = outcome_model_ridge(X,colnames, Z,y01_b,False)
+            coef_, _ = outcome_model_ridge(X,colnames, pca,y01_b,False,name)
+            coef.append(coef_)
+        
+        #https://abdalimran.github.io/2019-06-01/Drawing-multiple-ROC-Curves-in-a-single-plot
+        #Calculating ROC with entire train    
+        w,pca, x_gen = fm_PPCA(train,k)    
+        _,roc =  outcome_model_ridge(train,colnames, pca,y01,True,name)
         #df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
         #df_roc[name_PCA]=roc
         #aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
         #df_gamma = pd.concat([df_gamma,aux],axis=0)
         #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
 
-    return pvalue
+    return coef, roc
 
 def fm_MF(train,k):
     '''
@@ -166,18 +173,16 @@ def daHoldout(train,holdout_portion):
 
     x_train = np.multiply(1-holdout_mask, train)
     x_vad = np.multiply(holdout_mask, train)
-    return x_train, x_vad,holdout_mask,holdout_row
+    return x_train, x_vad,holdout_mask
 
-def daPredCheck(x_val,x_gen,w,z,holdout_mask,holdout_row):
+def daPredCheck(x_val,x_gen,w,z,holdout_mask):
     #obs_ll = []
     #rep_ll = []
-    x = np.multiply(np.transpose(np.dot(w,z)), holdout_mask)
-    holdout_subjects = np.unique(holdout_row)
+    #holdout_subjects = np.unique(holdout_row)
     holdout_mask1 = np.asarray(holdout_mask).reshape(-1)
-    #x_val1 = np.squeeze(np.asarray(x_val))
     x_val1 = np.asarray(x_val).reshape(-1)
-    #x_val1 = np.reshape(x_val, [1,-1])[0]
-    x1 = np.asarray(x).reshape(-1)
+    x1 = np.asarray(np.multiply(np.transpose(np.dot(w,z)), holdout_mask)).reshape(-1)
+    del x_val
     x_val1 = x_val1[holdout_mask1==1]
     x1= x1[holdout_mask1==1]
     pvals =[]
@@ -190,52 +195,12 @@ def daPredCheck(x_val,x_gen,w,z,holdout_mask,holdout_row):
         x_val_current = stats.norm(holdout_sample, 1).logpdf(x_val1)
         x_gen_current = stats.norm(holdout_sample, 1).logpdf(x1)
 
-        #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,3],x_val[0,3],stats.norm(holdout_sample, 1).logpdf(x)[0,3],x[0,3],' g:',holdout_sample[0,3])
-        #print(stats.norm(holdout_sample, 1).logpdf(x_val)[0,0],x_val[0,0],stats.norm(holdout_sample, 1).logpdf(x)[0,0],x[0,0],' g:',holdout_sample[0,2])
-
-        #obs_ll.append(x_val_current)
-        #rep_ll.append(x_gen_current)
         pvals.append(np.mean(np.array(x_val_current<x_gen_current)))
 
 
     overall_pval = np.mean(pvals)
     return overall_pval
 
-def check_save(Z,train,colnames,y01,name1,name2,k):
-    '''
-    Run predictive check function and print results
-    input:
-        z: latent features
-        train: training set
-        colnames: genes names
-        y01: binary classification
-        name: name for the file
-        k: size of the latent features (repetitive)
-    output:
-        save features on results folder or print that it failed
-        return the predicted values for the training data on the outcome model
-    '''
-    colname1 = name2+'_'+name1+'_'+str(k)
-    gamma,cil,cip, test_result = predictive_check(train,Z)
-    #result = []
-    #roc = []
-    if(test_result):
-        print('Predictive Check test: PASS',colname1)
-        #result , pred = outcome_model( train,colnames, Z,y01,colname1)
-        result , pred, extra = outcome_model_ridge(train,colnames, Z,y01,colname1)
-        if(len(pred)!=0):
-            #resul.to_csv('results\\feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt', sep=';', index = False)
-            #name = name1+str(k)+'_lr_'+name2
-            roc = pred
-        else:
-            roc = []
-            print('Outcome Model Does Not Coverge, results are not saved')
-            np.savetxt('results\\FAIL_outcome_feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt',[], fmt='%s')
-
-    else:
-        print('Predictive Check Test: FAIL',colname1)
-        np.savetxt('results\\FAIL_pcheck_feature_'+name1+'_'+str(k)+'_lr_'+name2+'.txt',[], fmt='%s')
-    return result, roc, gamma,cil,cip#, name1+'_'+str(k)+'_lr_'+name2
 
 def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
@@ -250,7 +215,7 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     x_aug = np.concatenate([x,np.transpose(x_latent)],axis=1)
     ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
     ridge.fit(x_aug, y01_b)
-    coef = ridge.coef_[0][0:X.shape[1]]
+    coef = ridge.coef_[0][0:x.shape[1]]
     
     if roc_flag: 
         pred = ridge.decision_function(x_aug)

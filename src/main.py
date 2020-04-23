@@ -32,7 +32,9 @@ if APPLICATION1:
     if testing:
          filename = listfiles[15]
          train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
-         deconfounder_PPCA_LR(train,colnames,y01,'da_ppca_lr',20,10)
+         #add dataset name 
+         coef, roc = models.deconfounder_PPCA_LR(train,colnames,y01,'da_ppca_lr',20,10)
+         roc_table.append(roc)
          #x_train, x_val, holdout_mask,holdout_row = models.daHoldout(train,0.2)
          #w,z, x_gen = models.fm_PPCA(x_train,10)
          #pvalue= models.daPredCheck(x_val,x_gen,w,z, holdout_mask,holdout_row)
@@ -44,15 +46,5 @@ if APPLICATION1:
             train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
             if train.shape[0]>150:
                 for k in k_list:
-                    name = 'd_'+filename.split("_")[-1].split(".")[0]
-                    pvalue = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,10)
-                    roc['y01'] = y01
-                    roc.to_csv('results\\roc_'+name+'_'+str(k)+'.txt', sep=';', index = False)
-
-                    if flag_first:
-                        ce = ce0
-                        gamma = gamma0
-                        flag_first = False
-                    else:
-                        ce =pd.merge(ce, ce0,  how='outer', left_on='genes', right_on = 'genes')
-                        gamma = pd.concat([gamma,gamma0],axis=0)
+                    coef, roc = models.deconfounder_PPCA_LR(train,colnames,y01,'da_ppca_lr',20,10)
+                    
