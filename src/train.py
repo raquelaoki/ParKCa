@@ -53,7 +53,7 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     #To speed up, I wont fit the PPCA to each boostrap iteration
     del x_gen
     if 0.1 < pvalue and pvalue < 0.9:
-        print('Pass Predictive Check:', name )
+        print('Pass Predictive Check:', filename )
         coef= []
         pca = np.transpose(z)
         for i in range(b):
@@ -64,7 +64,7 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
             pca_b = pca[rows,:] 
             #w,pca, x_gen = fm_PPCA(X,k)
             #outcome model
-            coef_, _ = outcome_model_ridge(X,colnames, pca_b,y01_b,False,name)
+            coef_, _ = outcome_model_ridge(X,colnames, pca_b,y01_b,False,filename)
             coef.append(coef_)
         
         
@@ -82,14 +82,18 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
         del X,pca,pca_b,y01_b
         del coef_var, coef, coef_
         w,z, x_gen = fm_PPCA(train,k,False)    
-        _,roc =  outcome_model_ridge(train,colnames, np.transpose(z),y01,True,name)
+        _,roc =  outcome_model_ridge(train,colnames, np.transpose(z),y01,True,filename)
         #df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
         #df_roc[name_PCA]=roc
         #aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
         #df_gamma = pd.concat([df_gamma,aux],axis=0)
         #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
+    else: 
+        coef_m = []
+        coef_z = []
+        roc = []
 
-    return np.multiply(coef_m,coef_z), roc
+    return np.multiply(coef_m,coef_z), roc, filename
 
 def fm_MF(train,k):
     '''
@@ -243,7 +247,7 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
         pred = ridge.decision_function(x_aug)
         fpr, tpr, _ = roc_curve(y01_b, pred)
         auc = roc_auc_score(y01_b, pred)
-        roc = {'classifiers':cls.name,
+        roc = {'classifiers': name,
                'fpr':fpr, 
                'tpr':tpr, 
                'auc':auc}
