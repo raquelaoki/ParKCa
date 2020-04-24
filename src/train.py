@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import warnings
+warnings.simplefilter("ignore")
 
 from os import listdir
 from os.path import isfile, join
@@ -45,7 +46,7 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     '''
     x_train, x_val, holdout_mask = daHoldout(train,0.2)
     w,z, x_gen = fm_PPCA(x_train,k,True)
-    filename = 'da_ppca_lr_' +str(k)+'_'+name
+    filename = 'dappcalr_' +str(k)+'_'+name
     pvalue= daPredCheck(x_val,x_gen,w,z, holdout_mask)
     alpha = 0.05 #for the IC test on outcome model 
     low = stats.norm(0,1).ppf(alpha/2)
@@ -244,10 +245,11 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     coef = ridge.coef_[0][0:x.shape[1]]
     
     if roc_flag: 
+        print(f1_score(y01_b,ridge.predict(x_aux)))
         pred = ridge.decision_function(x_aug)
         fpr, tpr, _ = roc_curve(y01_b, pred)
         auc = roc_auc_score(y01_b, pred)
-        roc = {'classifiers': name,
+        roc = {'learners': name,
                'fpr':fpr, 
                'tpr':tpr, 
                'auc':auc}
