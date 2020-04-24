@@ -239,21 +239,23 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     -name: roc name file
     '''
     import scipy.stats as st
-    ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
+    model = linear_model.ElasticNetCV(cv =5, normalize = True)
+    #ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
     
     if roc_flag: 
         #use testing and training set
         x_aug = np.concatenate([x,x_latent],axis=1)
         X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42) 
        
-        ridge.fit(X_train, y_train)
-        coef = ridge.coef_[0][0:x.shape[1]]
+        model.fit(X_train, y_train)
+        coef = model.coef_[0:x.shape[1]]
     
+        pred = model.predict(X_test)
+        pred01 =[ 1 if x>=0.5 else 0 for x in pred ]
+        print(f1_score(y_test,pred01))
 
-        print(f1_score(y_test,ridge.predict(X_test)))
-        pred = ridge.decision_function(X_test)
         fpr, tpr, _ = roc_curve(y_test, pred)
-        auc = roc_auc_score(y01_b, pred)
+        auc = roc_auc_score(y_test, pred)
         roc = {'learners': name,
                'fpr':fpr, 
                'tpr':tpr, 
@@ -262,8 +264,8 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     else:
         #don't split dataset 
         x_aug = np.concatenate([x,x_latent],axis=1)
-        ridge.fit(x_aug, y01_b)
-        coef = ridge.coef_[0][0:x.shape[1]]
+        model.fit(x_aug, y01_b)
+        coef = model.coef_[0][0:x.shape[1]]
         roc = {}
     #resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
 
