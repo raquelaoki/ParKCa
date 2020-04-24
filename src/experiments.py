@@ -39,5 +39,5 @@ def roc_plot(filename):
     plt.legend(prop={'size':13}, loc='lower right')
     
     plt.show()
-    fig.savefig('results//plot_'+f.split('//')[-1].split('.')[0]+'.png')
+    fig.savefig('results//plot_'+filename.split('//')[-1].split('.')[0]+'.png')
 

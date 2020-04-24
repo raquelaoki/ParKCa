@@ -239,15 +239,20 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     -name: roc name file
     '''
     import scipy.stats as st
-    x_aug = np.concatenate([x,x_latent],axis=1)
     ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
-    ridge.fit(x_aug, y01_b)
-    coef = ridge.coef_[0][0:x.shape[1]]
     
     if roc_flag: 
-        print(f1_score(y01_b,ridge.predict(x_aux)))
-        pred = ridge.decision_function(x_aug)
-        fpr, tpr, _ = roc_curve(y01_b, pred)
+        #use testing and training set
+        x_aug = np.concatenate([x,x_latent],axis=1)
+        X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42) 
+       
+        ridge.fit(X_train, y_train)
+        coef = ridge.coef_[0][0:x.shape[1]]
+    
+
+        print(f1_score(y_test,ridge.predict(X_test)))
+        pred = ridge.decision_function(X_test)
+        fpr, tpr, _ = roc_curve(y_test, pred)
         auc = roc_auc_score(y01_b, pred)
         roc = {'learners': name,
                'fpr':fpr, 
@@ -255,6 +260,10 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
                'auc':auc}
 
     else:
+        #don't split dataset 
+        x_aug = np.concatenate([x,x_latent],axis=1)
+        ridge.fit(x_aug, y01_b)
+        coef = ridge.coef_[0][0:x.shape[1]]
         roc = {}
     #resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
 
