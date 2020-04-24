@@ -265,7 +265,7 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
         #don't split dataset 
         x_aug = np.concatenate([x,x_latent],axis=1)
         model.fit(x_aug, y01_b)
-        coef = model.coef[0][0:x.shape[1]]
+        coef = model.coef_[0:x.shape[1]]
         roc = {}
     #resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
 
