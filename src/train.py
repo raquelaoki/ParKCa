@@ -20,6 +20,7 @@ from sklearn.utils.estimator_checks import check_estimator
 from sklearn.metrics import roc_curve,roc_auc_score
 from sklearn import linear_model
 
+from sklearn import calibration        
 
 from scipy.stats import gamma
 from scipy import sparse, stats
@@ -239,27 +240,29 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     -name: roc name file
     '''
     import scipy.stats as st
-    model = linear_model.ElasticNetCV(cv =5, normalize = True)
+    model = linear_model.SGDClassifier(penalty='l2', alpha=0.1, l1_ratio=0.01,loss='modified_huber', fit_intercept=True,random_state=0)
+    
+
     #ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
     
     if roc_flag: 
         #use testing and training set
         x_aug = np.concatenate([x,x_latent],axis=1)
         X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42) 
-       
-        model.fit(X_train, y_train)
-        coef = model.coef_[0:x.shape[1]]
+        modelcv = calibration.CalibratedClassifierCV(base_estimator=base, cv=5, method='isotonic').fit(X_train, y_train)
+        coef = modelcv.coef_[0:x.shape[1]]
     
-        pred = model.predict(X_test)
-        pred01 =[ 1 if x>=0.5 else 0 for x in pred ]
-        print(f1_score(y_test,pred01))
-
-        fpr, tpr, _ = roc_curve(y_test, pred)
-        auc = roc_auc_score(y_test, pred)
+        pred = modelcv.predict(X_test)
+        predp = modelcv.predict_proba(X_test)
+        predp1 = [i[1] for i in predp]
+        print(f1_score(y_test,pred))
+        fpr, tpr, _ = roc_curve(y_test, predp1)
+        auc = roc_auc_score(y_test, predp1)
         roc = {'learners': name,
                'fpr':fpr, 
                'tpr':tpr, 
                'auc':auc}
+        
 
     else:
         #don't split dataset 

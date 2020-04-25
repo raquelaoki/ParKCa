@@ -33,11 +33,11 @@ if APPLICATION1:
     b =100
     if testing:
         b = int(b/10)
-        listfiles = listfiles[0:6]
+        listfiles = listfiles[15:16]
         k_list = k_list[0:1]
         
     #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
-         
+     
     for k in k_list: 
           
          coefk_table = pd.DataFrame(columns=['genes'])
@@ -45,7 +45,7 @@ if APPLICATION1:
          for filename in listfiles:
              train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
              if train.shape[0]>150:  
-                print(filename)
+                print(filename,': ' ,train.shape[0])
                 #change filename
                 name = filename.split('_')[-1].split('.')[0]
                 coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
