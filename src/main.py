@@ -33,8 +33,7 @@ if APPLICATION1:
     b =100
     if testing:
         b = int(b/10)
-        listfiles = listfiles[15:16]
-        k_list = k_list[0:1]
+        listfiles = listfiles[13:16]
         
     #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
      

@@ -71,6 +71,7 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
         
         
         coef = np.matrix(coef)
+        coef = coef[:,0:train.shape[1]]
         #Building IC 
         coef_m = np.asarray(np.mean(coef,axis=0)).reshape(-1)
         coef_var = np.asarray(np.var(coef,axis=0)).reshape(-1)
@@ -249,8 +250,8 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
         #use testing and training set
         x_aug = np.concatenate([x,x_latent],axis=1)
         X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42) 
-        modelcv = calibration.CalibratedClassifierCV(base_estimator=base, cv=5, method='isotonic').fit(X_train, y_train)
-        coef = modelcv.coef_[0:x.shape[1]]
+        modelcv = calibration.CalibratedClassifierCV(base_estimator=model, cv=5, method='isotonic').fit(X_train, y_train)
+        coef = []
     
         pred = modelcv.predict(X_test)
         predp = modelcv.predict_proba(X_test)
@@ -268,7 +269,7 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
         #don't split dataset 
         x_aug = np.concatenate([x,x_latent],axis=1)
         model.fit(x_aug, y01_b)
-        coef = model.coef_[0:x.shape[1]]
+        coef = model.coef_[0]
         roc = {}
     #resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
 
