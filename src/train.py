@@ -20,7 +20,7 @@ from sklearn.utils.estimator_checks import check_estimator
 from sklearn.metrics import roc_curve,roc_auc_score
 from sklearn import linear_model
 
-from sklearn import calibration        
+from sklearn import calibration
 
 from scipy.stats import gamma
 from scipy import sparse, stats
@@ -49,7 +49,7 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     w,z, x_gen = fm_PPCA(x_train,k,True)
     filename = 'dappcalr_' +str(k)+'_'+name
     pvalue= daPredCheck(x_val,x_gen,w,z, holdout_mask)
-    alpha = 0.05 #for the IC test on outcome model 
+    alpha = 0.05 #for the IC test on outcome model
     low = stats.norm(0,1).ppf(alpha/2)
     up = stats.norm(0,1).ppf(1-alpha/2)
     #To speed up, I wont fit the PPCA to each boostrap iteration
@@ -63,35 +63,35 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
             rows = np.random.choice(train.shape[0], int(train.shape[0]*0.85), replace=False)
             X = train[rows, :]
             y01_b = y01[rows]
-            pca_b = pca[rows,:] 
+            pca_b = pca[rows,:]
             #w,pca, x_gen = fm_PPCA(X,k)
             #outcome model
             coef_, _ = outcome_model_ridge(X,colnames, pca_b,y01_b,False,filename)
             coef.append(coef_)
-        
-        
+
+
         coef = np.matrix(coef)
         coef = coef[:,0:train.shape[1]]
-        #Building IC 
+        #Building IC
         coef_m = np.asarray(np.mean(coef,axis=0)).reshape(-1)
         coef_var = np.asarray(np.var(coef,axis=0)).reshape(-1)
         coef_z = np.divide(coef_m,np.sqrt(coef_var/b))
         #1 if significative and 0 otherwise
-        coef_z = [ 1 if c>low and c<up else 0 for c in coef_z ] 
-        
-        
+        coef_z = [ 1 if c>low and c<up else 0 for c in coef_z ]
+
+
         #https://abdalimran.github.io/2019-06-01/Drawing-multiple-ROC-Curves-in-a-single-plot
-        #Calculating ROC with entire train    
+        #Calculating ROC with entire train
         del X,pca,pca_b,y01_b
         del coef_var, coef, coef_
-        w,z, x_gen = fm_PPCA(train,k,False)    
+        w,z, x_gen = fm_PPCA(train,k,False)
         _,roc =  outcome_model_ridge(train,colnames, np.transpose(z),y01,True,filename)
         #df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
         #df_roc[name_PCA]=roc
         #aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
         #df_gamma = pd.concat([df_gamma,aux],axis=0)
         #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
-    else: 
+    else:
         coef_m = []
         coef_z = []
         roc = []
@@ -112,6 +112,151 @@ def fm_MF(train,k):
     H = model.components_
 
     return W, H
+
+class PMF(object):
+    def __init__(self, num_feat=10, epsilon=1, _lambda=0.1, momentum=0.8, maxepoch=20, num_batches=10, batch_size=1000):
+        self.num_feat = num_feat  # Number of latent features,
+        self.epsilon = epsilon  # learning rate,
+        self._lambda = _lambda  # L2 regularization,
+        self.momentum = momentum  # momentum of the gradient,
+        self.maxepoch = maxepoch  # Number of epoch before stop,
+        self.num_batches = num_batches  # Number of batches in each epoch (for SGD optimization),
+        self.batch_size = batch_size  # Number of training samples used in each batches (for SGD optimization)
+
+        self.w_Item = None  # Item feature vectors
+        self.w_User = None  # User feature vectors
+
+        self.rmse_train = []
+        self.rmse_test = []
+
+    # ***Fit the model with train_tuple and evaluate RMSE on both train and test data.  ***********#
+    # ***************** train_vec=TrainData, test_vec=TestData*************#
+    def fit(self, train_vec, test_vec):
+        # mean subtraction
+        self.mean_inv = np.mean(train_vec[:, 2])  # 评分平均值
+
+        pairs_train = train_vec.shape[0]  # traindata 中条目数
+        pairs_test = test_vec.shape[0]  # testdata中条目数
+
+        # 1-p-i, 2-m-c
+        num_user = int(max(np.amax(train_vec[:, 0]), np.amax(test_vec[:, 0]))) + 1  # 第0列，user总数
+        num_item = int(max(np.amax(train_vec[:, 1]), np.amax(test_vec[:, 1]))) + 1  # 第1列，movie总数
+
+        incremental = False  # 增量
+        if ((not incremental) or (self.w_Item is None)):
+            # initialize
+            self.epoch = 0
+            self.w_Item = 0.1 * np.random.randn(num_item, self.num_feat)  # numpy.random.randn 电影 M x D 正态分布矩阵
+            self.w_User = 0.1 * np.random.randn(num_user, self.num_feat)  # numpy.random.randn 用户 N x D 正态分布矩阵
+
+            self.w_Item_inc = np.zeros((num_item, self.num_feat))  # 创建电影 M x D 0矩阵
+            self.w_User_inc = np.zeros((num_user, self.num_feat))  # 创建用户 N x D 0矩阵
+
+        while self.epoch < self.maxepoch:  # 检查迭代次数
+            self.epoch += 1
+
+            # Shuffle training truples
+            shuffled_order = np.arange(train_vec.shape[0])  # 根据记录数创建等差array
+            np.random.shuffle(shuffled_order)  # 用于将一个列表中的元素打乱
+
+            # Batch update
+            for batch in range(self.num_batches):  # 每次迭代要使用的数据量
+                # print "epoch %d batch %d" % (self.epoch, batch+1)
+
+                test = np.arange(self.batch_size * batch, self.batch_size * (batch + 1))
+                batch_idx = np.mod(test, shuffled_order.shape[0])  # 本次迭代要使用的索引下标
+
+                batch_UserID = np.array(train_vec[shuffled_order[batch_idx], 0], dtype='int32')
+                batch_ItemID = np.array(train_vec[shuffled_order[batch_idx], 1], dtype='int32')
+
+                # Compute Objective Function
+                pred_out = np.sum(np.multiply(self.w_User[batch_UserID, :],
+                                              self.w_Item[batch_ItemID, :]),
+                                  axis=1)  # mean_inv subtracted # np.multiply对应位置元素相乘
+
+                rawErr = pred_out - train_vec[shuffled_order[batch_idx], 2] + self.mean_inv
+
+                # Compute gradients
+                Ix_User = 2 * np.multiply(rawErr[:, np.newaxis], self.w_Item[batch_ItemID, :]) \
+                       + self._lambda * self.w_User[batch_UserID, :]
+                Ix_Item = 2 * np.multiply(rawErr[:, np.newaxis], self.w_User[batch_UserID, :]) \
+                       + self._lambda * (self.w_Item[batch_ItemID, :])  # np.newaxis :increase the dimension
+
+                dw_Item = np.zeros((num_item, self.num_feat))
+                dw_User = np.zeros((num_user, self.num_feat))
+
+                # loop to aggreate the gradients of the same element
+                for i in range(self.batch_size):
+                    dw_Item[batch_ItemID[i], :] += Ix_Item[i, :]
+                    dw_User[batch_UserID[i], :] += Ix_User[i, :]
+
+                # Update with momentum
+                self.w_Item_inc = self.momentum * self.w_Item_inc + self.epsilon * dw_Item / self.batch_size
+                self.w_User_inc = self.momentum * self.w_User_inc + self.epsilon * dw_User / self.batch_size
+
+                self.w_Item = self.w_Item - self.w_Item_inc
+                self.w_User = self.w_User - self.w_User_inc
+
+                # Compute Objective Function after
+                if batch == self.num_batches - 1:
+                    pred_out = np.sum(np.multiply(self.w_User[np.array(train_vec[:, 0], dtype='int32'), :],
+                                                  self.w_Item[np.array(train_vec[:, 1], dtype='int32'), :]),
+                                      axis=1)  # mean_inv subtracted
+                    rawErr = pred_out - train_vec[:, 2] + self.mean_inv
+                    obj = np.linalg.norm(rawErr) ** 2 \
+                          + 0.5 * self._lambda * (np.linalg.norm(self.w_User) ** 2 + np.linalg.norm(self.w_Item) ** 2)
+
+                    self.rmse_train.append(np.sqrt(obj / pairs_train))
+
+                # Compute validation error
+                if batch == self.num_batches - 1:
+                    pred_out = np.sum(np.multiply(self.w_User[np.array(test_vec[:, 0], dtype='int32'), :],
+                                                  self.w_Item[np.array(test_vec[:, 1], dtype='int32'), :]),
+                                      axis=1)  # mean_inv subtracted
+                    rawErr = pred_out - test_vec[:, 2] + self.mean_inv
+                    self.rmse_test.append(np.linalg.norm(rawErr) / np.sqrt(pairs_test))
+
+                    # Print info
+                    if batch == self.num_batches - 1:
+                        print('Training RMSE: %f, Test RMSE %f' % (self.rmse_train[-1], self.rmse_test[-1]))
+
+    def predict(self, invID):
+        return np.dot(self.w_Item, self.w_User[int(invID), :]) + self.mean_inv  # numpy.dot 点乘
+
+    # ****************Set parameters by providing a parameter dictionary.  ***********#
+    def set_params(self, parameters):
+        if isinstance(parameters, dict):
+            self.num_feat = parameters.get("num_feat", 10)
+            self.epsilon = parameters.get("epsilon", 1)
+            self._lambda = parameters.get("_lambda", 0.1)
+            self.momentum = parameters.get("momentum", 0.8)
+            self.maxepoch = parameters.get("maxepoch", 20)
+            self.num_batches = parameters.get("num_batches", 10)
+            self.batch_size = parameters.get("batch_size", 1000)
+
+    def topK(self, test_vec, k=10):
+        inv_lst = np.unique(test_vec[:, 0])
+        pred = {}
+        for inv in inv_lst:
+            if pred.get(inv, None) is None:
+                pred[inv] = np.argsort(self.predict(inv))[-k:]  # numpy.argsort索引排序
+
+        intersection_cnt = {}
+        for i in range(test_vec.shape[0]):
+            if test_vec[i, 1] in pred[test_vec[i, 0]]:
+                intersection_cnt[test_vec[i, 0]] = intersection_cnt.get(test_vec[i, 0], 0) + 1
+        invPairs_cnt = np.bincount(np.array(test_vec[:, 0], dtype='int32'))
+
+        precision_acc = 0.0
+        recall_acc = 0.0
+        for inv in inv_lst:
+            precision_acc += intersection_cnt.get(inv, 0) / float(k)
+            recall_acc += intersection_cnt.get(inv, 0) / float(invPairs_cnt[int(inv)])
+
+        return precision_acc / len(inv_lst), recall_acc / len(inv_lst)
+
+
+
 
 def fm_PPCA(train,latent_dim, flag_pred):
     #source: https://github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_PCA.ipynb
@@ -176,14 +321,14 @@ def fm_PPCA(train,latent_dim, flag_pred):
         num_steps=400)
 
 
-    
+
     x_generated = []
     if flag_pred:
         for i in range(50):
             _, _, x_g = model.sample(value=surrogate_posterior.sample(1))
             x_generated.append(x_g.numpy()[0])
-    
-    w, z = surrogate_posterior.variables        
+
+    w, z = surrogate_posterior.variables
 
     return w.numpy(),z.numpy(), x_generated
 
@@ -242,17 +387,17 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
     import scipy.stats as st
     model = linear_model.SGDClassifier(penalty='l2', alpha=0.1, l1_ratio=0.01,loss='modified_huber', fit_intercept=True,random_state=0)
-    
+
 
     #ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
-    
-    if roc_flag: 
+
+    if roc_flag:
         #use testing and training set
         x_aug = np.concatenate([x,x_latent],axis=1)
-        X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42) 
+        X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42)
         modelcv = calibration.CalibratedClassifierCV(base_estimator=model, cv=5, method='isotonic').fit(X_train, y_train)
         coef = []
-    
+
         pred = modelcv.predict(X_test)
         predp = modelcv.predict_proba(X_test)
         predp1 = [i[1] for i in predp]
@@ -260,13 +405,13 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
         fpr, tpr, _ = roc_curve(y_test, predp1)
         auc = roc_auc_score(y_test, predp1)
         roc = {'learners': name,
-               'fpr':fpr, 
-               'tpr':tpr, 
+               'fpr':fpr,
+               'tpr':tpr,
                'auc':auc}
-        
+
 
     else:
-        #don't split dataset 
+        #don't split dataset
         x_aug = np.concatenate([x,x_latent],axis=1)
         model.fit(x_aug, y01_b)
         coef = model.coef_[0]
