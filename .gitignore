@@ -1,4 +1,7 @@
 extra/
 data/
+data_s/
 results/
 __pycache__/
+
+.Rhistory
