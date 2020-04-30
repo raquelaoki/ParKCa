@@ -5,7 +5,9 @@ import numpy as np
 import warnings
 warnings.simplefilter("ignore")
 
-path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+path = 'C://Users//raque//Documents//GitHub//ParKCa'
+
 sys.path.append(path+'//src')
 import datapreprocessing as dp
 import train as models
@@ -47,6 +49,11 @@ if APPLICATION1:
             rating_.append([rating.id[i],rating.genes[i],rating.values[i]])
 
         #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
+         train, test = train_test_split(ratings, test_size=0.2)  # spilt_rating_dat(ratings)
+         pmf = models.PMF()
+         pmf.fit(train, test)
+         
+
     else:
         for k in k_list:
 

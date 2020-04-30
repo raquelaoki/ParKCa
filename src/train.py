@@ -5,6 +5,7 @@ warnings.simplefilter("ignore")
 
 from os import listdir
 from os.path import isfile, join
+
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn import svm
@@ -19,11 +20,11 @@ from sklearn.svm import SVC
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.metrics import roc_curve,roc_auc_score
 from sklearn import linear_model
-
 from sklearn import calibration
 
 from scipy.stats import gamma
 from scipy import sparse, stats
+
 import statsmodels.discrete.discrete_model as sm
 
 import tensorflow as tf #.compat.v2
@@ -31,7 +32,6 @@ import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
 
 import functools
-
 
 
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
@@ -114,6 +114,7 @@ def fm_MF(train,k):
     return W, H
 
 class PMF(object):
+    #reference: https://github.com/fuhailin/Probabilistic-Matrix-Factorization
     def __init__(self, num_feat=10, epsilon=1, _lambda=0.1, momentum=0.8, maxepoch=20, num_batches=10, batch_size=1000):
         self.num_feat = num_feat  # Number of latent features,
         self.epsilon = epsilon  # learning rate,

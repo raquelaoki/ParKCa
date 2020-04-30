@@ -8,7 +8,9 @@ import numpy.random as npr
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from scipy import sparse
-
+import h5py
+import sys
+import allel
 
 def load_GE(filename1, filename2):
     '''
@@ -106,76 +108,55 @@ def data_prep(filename):
 
 
 #simulation
-#Reference: http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
-#Example: http://alimanfoo.github.io/2017/06/14/read-vcf.html
-#Worked example: human 1000 genomes phase 3
 
-vcf_path = 'C://Users//raque//Documents//GitHub//ParKCa//data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz'
-import sys
-import allel
-import zarr
-import numcodecs
-callset = allel.read_vcf(vcf_path, fields=['numalt'], log=sys.stdout)
-numalt = callset['variants/numalt']
-count_numalt = np.bincount(numalt)
-zarr_path = 'C://Users//raque//Documents//GitHub//ParKCa//data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.zarr'
-#takes time: 3:43 - 4:15 (?) 
-allel.vcf_to_zarr(vcf_path, zarr_path, fields='*', alt_number=np.max(numalt), log=sys.stdout,
-                  compressor=numcodecs.Blosc(cname='zstd', clevel=1, shuffle=False))
+vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
+def sim_load_vcf_to_h5(vcf_path):
+    #Reference: http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
+    #Example: http://alimanfoo.github.io/2017/06/14/read-vcf.html
+    #Worked example: human 1000 genomes phase 3
+    #vcf_path = 'C://Users//raque//Documents//GitHub//ParKCa//data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz'
 
-#checking
-callset_h1k = zarr.open_group(zarr_path, mode='r')
-callset_h1k
-
-pos = allel.SortedIndex(callset_h1k['/variants/POS'])
-pos
-
-#4:26 - 4:47
-h5_path = 'C://Users//raque//Documents//GitHub//ParKCa//data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
-allel.vcf_to_hdf5(vcf_path, h5_path, fields='*', overwrite=True)
-
-import h5py
-callset = h5py.File(h5_path, mode='r')
+    h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
+    allel.vcf_to_hdf5(vcf_path, h5_path, fields='*', overwrite=True)
 
 
+def sim_load_h5_to_PCA(h5_path):
+    callset = h5py.File(h5_path, mode='r')
 
-#LOAD h5 
-#PCA http://alimanfoo.github.io/2015/09/28/fast-pca.html
-#g = allel.GenotypeChunkedArray(callset['calldata']['genotype'])
-g = allel.GenotypeChunkedArray(callset['calldata/GT'])
-g
+    #Reference: http://alimanfoo.github.io/2015/09/28/fast-pca.html
+    #g = allel.GenotypeChunkedArray(callset['calldata']['genotype'])
+    g = allel.GenotypeChunkedArray(callset['calldata/GT'])
+    #g
 
-ac = g.count_alleles()[:]
-ac
+    ac = g.count_alleles()[:]
+    #ac
+    
+    # remove singletons and multiallelic SNPs. Singletons are not informative for PCA,
+    #np.count_nonzero(ac.max_allele() > 1)
+    #np.count_nonzero((ac.max_allele() == 1) & ac.is_singleton(1))
+    flt = (ac.max_allele() == 1) & (ac[:, :2].min(axis=1) > 1)
+    gf = g.compress(flt, axis=0)
+    #gf
+    # transform the genotype data into a 2-dimensional matrix where each cell has the number of non-reference alleles per call
+    gn = gf.to_n_alt()
+    gn
 
-# remove singletons and multiallelic SNPs. Singletons are not informative for PCA,
-np.count_nonzero(ac.max_allele() > 1)
-np.count_nonzero((ac.max_allele() == 1) & ac.is_singleton(1))
-flt = (ac.max_allele() == 1) & (ac[:, :2].min(axis=1) > 1)
-gf = g.compress(flt, axis=0)
-gf
+    #Removing correlated features (LD pruning): each SNP is a feature, SNPs tend to be correlated
+    #It takes a while 5:15-
+    def ld_prune(gn, size, step, threshold=.1, n_iter=1):
+        for i in range(n_iter):
+            loc_unlinked = allel.locate_unlinked(gn, size=size, step=step, threshold=threshold)
+            n = np.count_nonzero(loc_unlinked)
+            n_remove = gn.shape[0] - n
+            print('iteration', i+1, 'retaining', n, 'removing', n_remove, 'variants')
+            gn = gn.compress(loc_unlinked, axis=0)
+        return gn
+    #more than 3 does not remove almost anything
+    gnu = ld_prune(gn, size=500, step=200, threshold=.1, n_iter=3)
 
-# transform the genotype data into a 2-dimensional matrix where each cell has the number of non-reference alleles per call
-gn = gf.to_n_alt()
-gn
-
-#Removing correlated features (LD pruning): each SNP is a feature, SNPs tend to be correlated
-#It takes a while 5:15-
-def ld_prune(gn, size, step, threshold=.1, n_iter=1):
-    for i in range(n_iter):
-        loc_unlinked = allel.locate_unlinked(gn, size=size, step=step, threshold=threshold)
-        n = np.count_nonzero(loc_unlinked)
-        n_remove = gn.shape[0] - n
-        print('iteration', i+1, 'retaining', n, 'removing', n_remove, 'variants')
-        gn = gn.compress(loc_unlinked, axis=0)
-    return gn
-
-gnu = ld_prune(gn, size=500, step=200, threshold=.1, n_iter=5)
-
-
-
-#PCA 
-coords1, model1 = allel.pca(gnu, n_components=2, scaler='patterson')
+    #PCA 
+    coords1, model1 = allel.pca(gnu, n_components=5, scaler='patterson') 
+    np.savetxt('data_s//tgp_pca10.txt', coords1, delimiter=',')  
 
 
 
