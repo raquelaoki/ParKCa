@@ -18,6 +18,7 @@ Causality for Computational Biology
 * conda install -c anaconda scikit-learn
 * conda install -c conda-forge matplotlib
 * conda install -c anaconda seaborn
+* conda install -c anaconda statsmodels
 
 
 
