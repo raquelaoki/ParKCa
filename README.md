@@ -19,7 +19,8 @@ Causality for Computational Biology
 * conda install -c conda-forge matplotlib
 * conda install -c anaconda seaborn
 * conda install -c anaconda statsmodels
-
+* conda install -c conda-forge pymc3
+* conda install -c conda-forge keras
 
 
 
