@@ -8,6 +8,7 @@ import numpy.random as npr
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from scipy import sparse
+from scipy.special import expit
 import h5py
 import sys
 import allel
@@ -108,17 +109,14 @@ def data_prep(filename):
 
 
 #simulation
-
-vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
-def sim_load_vcf_to_h5(vcf_path):
+def sim_load_vcf_to_h5(vcf_path,h5_path):
     #Reference: http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
     #Example: http://alimanfoo.github.io/2017/06/14/read-vcf.html
     #Worked example: human 1000 genomes phase 3
     #vcf_path = 'C://Users//raque//Documents//GitHub//ParKCa//data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz'
 
-    h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
+    #h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
     allel.vcf_to_hdf5(vcf_path, h5_path, fields='*', overwrite=True)
-
 
 def sim_load_h5_to_PCA(h5_path):
     callset = h5py.File(h5_path, mode='r')
@@ -139,7 +137,7 @@ def sim_load_h5_to_PCA(h5_path):
     #gf
     # transform the genotype data into a 2-dimensional matrix where each cell has the number of non-reference alleles per call
     gn = gf.to_n_alt()
-    gn
+    #gn
 
     #Removing correlated features (LD pruning): each SNP is a feature, SNPs tend to be correlated
     #It takes a while 5:15-
@@ -155,10 +153,10 @@ def sim_load_h5_to_PCA(h5_path):
     gnu = ld_prune(gn, size=500, step=200, threshold=.1, n_iter=3)
 
     #PCA 
-    coords1, model1 = allel.pca(gnu, n_components=5, scaler='patterson') 
-    np.savetxt('data_s//tgp_pca10.txt', coords1, delimiter=',')  
-
-
+    k = 2
+    coords1, model1 = allel.pca(gnu, n_components=k, scaler='patterson') 
+    np.savetxt('data_s//tgp_pca'+str(k)+'.txt', coords1, delimiter=',')  
+    return coords1
 
 
 #Code bellow adapted from Yixin Wang
@@ -188,9 +186,22 @@ def sim_genes_BN(Fs, ps, n_hapmapgenes, n_causes, n_units, D=3):
     sG = sparse.csr_matrix(G)
     return G, lambdas
 
-def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, hapmap_gene_clean, D=3):
-    pca = PCA(n_components=2, svd_solver='full')
-    S = expit(pca.fit_transform(hapmap_gene_clean))
+def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D=3):
+    '''
+    generate the simulated data
+    input: 
+        - Fs, ps, n_hapmapgenes: not used here
+        - n_causes = integer 
+        - n_units = m (columns)
+        - S: PCA output n x 2 
+    '''
+    
+    #Fs and ps [] (not used in this version)
+    #n_hapmapgenes also not used 
+    #n_causes, n_units, S
+    #pca = PCA(n_components=2, svd_solver='full')
+    #S = expit(pca.fit_transform(hapmap_gene_clean))
+    S = expit(S)
     Gammamat = np.zeros((n_causes, 3))
     Gammamat[:,0] = 0.45*npr.uniform(size=n_causes)
     Gammamat[:,1] = 0.45*npr.uniform(size=n_causes)
@@ -199,9 +210,11 @@ def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, hapmap_gene_clean, D
         np.ones(n_units)))
     F = S.dot(Gammamat.T)
     G = npr.binomial(2, F)
+    #unobserved group
     lambdas = KMeans(n_clusters=3, random_state=123).fit(S).labels_
     sG = sparse.csr_matrix(G)
     return G, lambdas
+
 
 def sim_genes_PSD(Fs, ps, n_hapmapgenes, n_causes, n_units, D=3):
     alpha = 0.5
