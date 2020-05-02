@@ -11,14 +11,15 @@ Causality for Computational Biology
 * conda install git
 * pip install "git+https://github.com/google/edward2.git#egg=edward2"
 * pip install -e "git+https://github.com/google/edward2.git#egg=edward2"
-* conda install -c conda-forge tensorflow
+* conda install -c conda-forge tensorflow=1.15
 * conda install -c conda-forge tensorflow-probability
 * conda install -c anaconda pandas
 * conda install -c anaconda numpy
 * conda install -c anaconda scikit-learn
 * conda install -c conda-forge matplotlib
 * conda install -c anaconda seaborn
-
+* conda install -c anaconda statsmodels
+* conda install -c conda-forge scikit-allel
 
 
 
