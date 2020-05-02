@@ -23,10 +23,11 @@ np.random.seed(randseed)
 
 pd.set_option('display.max_columns', 500)
 
-APPLICATION1 = True #driver genes APPLICATION1
+APPLICATION = False #driver genes APPLICATION1
+SIMULATION = True
 testing = True
 
-if APPLICATION1:
+if APPLICATION:
     flag_first = True
     k_list = [15,30]
     if testing: k_list = k_list[0:1]
@@ -40,19 +41,8 @@ if APPLICATION1:
         filename = listfiles[0]
         train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
         name = filename.split('_')[-1].split('.')[0]
-        rating = pd.DataFrame(train)
-        rating.colnames = colnames
-        rating['id'] = rating.index
-        rating = pd.melt(train,id_vars='id',var_name='genes', value_name='values')
-        rating_ = []
-        for i in range(rating.shape[0]):
-            rating_.append([rating.id[i],rating.genes[i],rating.values[i]])
+    
 
-        #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
-         train, test = train_test_split(ratings, test_size=0.2)  # spilt_rating_dat(ratings)
-         pmf = models.PMF()
-         pmf.fit(train, test)
-         
 
     else:
         for k in k_list:
@@ -76,3 +66,58 @@ if APPLICATION1:
              roc_table.to_pickle('results//roc_'+str(k)+'.txt')
              coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
              exp.roc_plot('results//roc_'+str(k)+'.txt')
+
+if SIMULATION: 
+    vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
+    h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
+    #sim_load_vcf_to_h5(vcf_path,h5_path)
+    #S = dp.sim_load_h5_to_PCA(h5_path)
+    S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
+    n_units = 5000
+    n_causes = 50000# 10% var 
+    G, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, D=3)
+    #True causes and lambda, now i need to add the noise? 
+    import numpy.random as npr
+    b_ = npr.normal(loc = 0 , scale=0.5*0.5, size=n_causes)
+    #True causes 
+    b = [i if i>np.quantile(b_,0.99) else 0 for i in b_]#truncate so only 1% are different from 0 
+    sigma = np.zeros(n_units)
+    sigma = [3*3 if lambdas[j]==0 else sigma[j] for j in range(len(sigma))]
+    sigma = [5*5 if lambdas[j]==1 else sigma[j] for j in range(len(sigma))]
+    sigma = [7*7 if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
+    y0 = np.array(b).reshape(1,-1).dot(np.transpose(G))
+    y1 = 80*lambdas.reshape(1,-1)
+    y2 = npr.normal(0,sigma,n_units).reshape(1,-1)
+    y = y0 + y1 + y2
+    p = 1/(1+np.exp(y0 + y1 + y2))
+    print('This should be 10%: ', np.mean(y*y)/np.var(y0))
+    print('This should be 20%: ', np.mean(y*y)/np.var(y1))
+    print('This should be 70%: ', np.mean(y*y)/np.var(y2))
+    #del y0, y1, y2,y
+    y01 = np.zeros(len(p[0])) 
+    y01 = [npr.binomial(1,p[0][i],1)[0] for i in range(len(p[0]))]
+    #568 1's
+    print(sum(y01), len(y01))
+    #train, j, v, y01, abr, colnames
+    train_s = G
+    j, v = G.shape
+    abr = []
+    colnames = []
+    causes = 0 
+    noncauses = 0 
+    for i in range(len(b)):
+        if b[i]>0: 
+            colnames.append('causal_'+str(causes))
+            causes+=1
+        else: 
+            colnames.append('noncausal_'+str(noncauses))
+            noncauses+=1
+    
+    name = 'simulation1'
+    print(name,': ' ,train_s.shape[0])
+                    #change filename
+    k = 15
+    b = 10 
+    #coef, roc, coln = models.deconfounder_PPCA_LR(train_s,colnames,y01,name,k,b)
+    #roc_table = roc_table.append(roc,ignore_index=True)
+    #coefk_table[coln] = coef

@@ -27,6 +27,7 @@ from scipy import sparse, stats
 
 import statsmodels.discrete.discrete_model as sm
 
+from tensorflow.keras import optimizers
 import tensorflow as tf #.compat.v2
 import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
@@ -113,6 +114,43 @@ def fm_MF(train,k):
 
     return W, H
 
+
+#it works, but all predictions where the same
+def fm_PMF(train,k):
+    rating = pd.DataFrame(train)
+    tab_colname = pd.DataFrame({'idcol':rating.columns,'gene':colnames.values.tolist() })
+    #rating.iloc[0:5,0:2]
+    rating['id'] = rating.index
+    rating1 = pd.melt(rating,id_vars='id',var_name='genes', value_name='values')
+    #rating.id = rating.id + 1
+    #rating.genes = rating.genes + 1 
+    #shape: 20166364
+    print(rating1.shape)    
+    rating2 = rating1.to_numpy() #
+    print(rating2.shape)
+    del rating, rating1
+    #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
+    train, test = train_test_split(rating2, test_size=0.2)  # spilt_rating_dat(ratings)
+    #epsilon, _lambda, momentum, maxepoch, num_batches, batch_size    
+    #("num_batches", 10), ("batch_size", 1000)
+    pmf = models.PMF(num_feat=k,_lambda=0.1, maxepoch = 6, momentum = 0.1,epsilon=1)#.fit(train, test)
+    pmf.fit(train, test)
+    w = pmf.w_Item
+    u = pmf.w_User
+    x_gen = []
+    for i in range(train.shape[0]):
+        x_gen.append(pmf.predict(i))
+        
+    #models.PMF(num_feat=k,_lambda=0.1) RMSE 2.802363 
+    #models.PMF(num_feat=k,_lambda=0.3) RMSE 2.802346
+    #models.PMF(num_feat=k,_lambda=0.8) RMSE 2.802315
+    #momentum = from 0.8 to 0.5: no difference 
+    #momentum from 0.8 to 1.5: RMSE increase and explode
+    #epsilon from 1 to 0.5: no differnce 
+    #epsilon from 1 to 2: no difference 
+    return w, u, np.array(x_gen)
+
+
 class PMF(object):
     #reference: https://github.com/fuhailin/Probabilistic-Matrix-Factorization
     def __init__(self, num_feat=10, epsilon=1, _lambda=0.1, momentum=0.8, maxepoch=20, num_batches=10, batch_size=1000):
@@ -188,8 +226,8 @@ class PMF(object):
 
                 # loop to aggreate the gradients of the same element
                 for i in range(self.batch_size):
-                    dw_Item[batch_ItemID[i], :] += Ix_Item[i, :]
-                    dw_User[batch_UserID[i], :] += Ix_User[i, :]
+                    dw_Item[batch_ItemID[i], :] += Ix_Item[i, :].astype(float)
+                    dw_User[batch_UserID[i], :] += Ix_User[i, :].astype(float)
 
                 # Update with momentum
                 self.w_Item_inc = self.momentum * self.w_Item_inc + self.epsilon * dw_Item / self.batch_size
@@ -299,7 +337,7 @@ def fm_PPCA(train,latent_dim, flag_pred):
 
     target_log_prob_fn = lambda w, z: model.log_prob((w, z, x_train))
     losses = tfp.math.minimize(lambda: -target_log_prob_fn(w, z),
-                               optimizer=tf.optimizers.Adam(learning_rate=0.05),
+                               optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
                                num_steps=200)
 
     qw_mean = tf.Variable(np.ones([data_dim, latent_dim]), dtype=tf.float32)
@@ -318,7 +356,7 @@ def fm_PPCA(train,latent_dim, flag_pred):
     losses = tfp.vi.fit_surrogate_posterior(
         target_log_prob_fn,
         surrogate_posterior=surrogate_posterior,
-        optimizer=tf.optimizers.Adam(learning_rate=0.1),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
         num_steps=400)
 
 
