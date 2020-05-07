@@ -22,4 +22,5 @@ Causality for Computational Biology
 * conda install -c conda-forge scikit-allel
 * conda install -c conda-forge progressbar
 
+* conda install -c pytorch pytorch
 
