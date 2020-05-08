@@ -11,7 +11,7 @@ from scipy import sparse
 from scipy.special import expit
 import h5py
 import sys
-import allel
+import allel #http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
 
 def load_GE(filename1, filename2):
     '''
@@ -110,11 +110,11 @@ def data_prep(filename):
 
 #simulation
 def sim_load_vcf_to_h5(vcf_path,h5_path):
+    #download ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
     #Reference: http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
     #Example: http://alimanfoo.github.io/2017/06/14/read-vcf.html
     #Worked example: human 1000 genomes phase 3
     #vcf_path = 'C://Users//raque//Documents//GitHub//ParKCa//data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz'
-
     #h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
     allel.vcf_to_hdf5(vcf_path, h5_path, fields='*', overwrite=True)
 
