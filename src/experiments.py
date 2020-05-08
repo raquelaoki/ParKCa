@@ -11,6 +11,7 @@ from ast import literal_eval
 #read from roc_table
 
 def roc_plot(filename):
+    #https://abdalimran.github.io/2019-06-01/Drawing-multiple-ROC-Curves-in-a-single-plot
     #roc_table1 = pd.read_csv(filename,delimiter=';')
     #coef_table1 = pd.read_csv('results\\coef_15.txt',delimiter=',')
     #roc_table1.columns = ['learners','fpr','tpr','auc']
