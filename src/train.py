@@ -27,12 +27,50 @@ from scipy import sparse, stats
 
 import statsmodels.discrete.discrete_model as sm
 
-from tensorflow.keras import optimizers
+#from tensorflow.keras import optimizers
 import tensorflow as tf #.compat.v2
 import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
-
+tf.enable_eager_execution()
 import functools
+
+
+#libraries for BART
+from bartpy.sklearnmodel import SklearnModel
+import pickle 
+
+def BART(train, colnames,y01,name,load,filename):
+    #   
+    '''
+    CATE: using a subset of the traning set to speed up
+    '''
+
+    X, X_, y, y_= train_test_split(train,y01, test_size=0.33,random_state=42)
+    if not load: 
+        #it takes a long time to run
+        model = SklearnModel(n_samples=1000, n_burn=200, n_trees=50, n_chains=1, n_jobs=-1, store_in_sample_predictions=False) 
+        model.fit(np.array(X), y) # Fit the model
+        # save the model to disk
+        pickle.dump(model, open(filename, 'wb'))
+    else: 
+        # load the model from disk
+        model = pickle.load(open(filename, 'rb'))
+        result = model.score(X_test, Y_test)
+
+    '''
+    y_pred = model.predict(X_) 
+    cate = []
+    for i in rante(len(colnames)):
+        X_inter = X_test.copy()
+        X_inter[:,i] = 0 
+        y_inter = model.predict(X_inter)
+        #cate = 
+    
+    
+        ROC: split training/testing set and return results for testing set
+    '''
+    return #cate, roc, filename
+
 
 
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
@@ -56,7 +94,7 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     #To speed up, I wont fit the PPCA to each boostrap iteration
     del x_gen
     if 0.1 < pvalue and pvalue < 0.9:
-        print('Pass Predictive Check:', filename )
+        print('Pass Predictive Check:', filename, '(',str(pvalue),')' )
         coef= []
         pca = np.transpose(z)
         for i in range(b):
@@ -82,7 +120,10 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
 
 
         #https://abdalimran.github.io/2019-06-01/Drawing-multiple-ROC-Curves-in-a-single-plot
-        #Calculating ROC with entire train
+        '''
+        if ROC = TRUE, outcome model receive entire dataset, but internally split in training
+        and testing set. The ROC results and score is just for testing set
+        '''
         del X,pca,pca_b,y01_b
         del coef_var, coef, coef_
         w,z, x_gen = fm_PPCA(train,k,False)
@@ -98,23 +139,6 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
         roc = []
 
     return np.multiply(coef_m,coef_z), roc, filename
-
-def fm_MF(train,k):
-    '''
-    Matrix Factorization to extract latent features
-    Parameters:
-        train: dataset
-        k: latent Dimension
-    Return:
-        2 matrices
-    '''
-    model = NMF(n_components=k, init='random') #random_state=0
-    W = model.fit_transform(train)
-    H = model.components_
-
-    return W, H
-
-
 #it works, but all predictions where the same
 def fm_PMF(train,k):
     rating = pd.DataFrame(train)
@@ -149,7 +173,6 @@ def fm_PMF(train,k):
     #epsilon from 1 to 0.5: no differnce 
     #epsilon from 1 to 2: no difference 
     return w, u, np.array(x_gen)
-
 
 class PMF(object):
     #reference: https://github.com/fuhailin/Probabilistic-Matrix-Factorization
@@ -294,9 +317,6 @@ class PMF(object):
 
         return precision_acc / len(inv_lst), recall_acc / len(inv_lst)
 
-
-
-
 def fm_PPCA(train,latent_dim, flag_pred):
     #source: https://github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_PCA.ipynb
     num_datapoints, data_dim = train.shape
@@ -414,7 +434,6 @@ def daPredCheck(x_val,x_gen,w,z,holdout_mask):
     overall_pval = np.mean(pvals)
     return overall_pval
 
-
 def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
     input:
@@ -440,7 +459,7 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
         pred = modelcv.predict(X_test)
         predp = modelcv.predict_proba(X_test)
         predp1 = [i[1] for i in predp]
-        print(f1_score(y_test,pred))
+        print('F1:',f1_score(y_test,pred),sum(pred),sum(y_test))
         fpr, tpr, _ = roc_curve(y_test, predp1)
         auc = roc_auc_score(y_test, predp1)
         roc = {'learners': name,
