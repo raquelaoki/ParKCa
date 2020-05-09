@@ -13,7 +13,7 @@ from sklearn.decomposition import NMF, PCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
 from sklearn import metrics
-from sklearn.metrics import confusion_matrix,f1_score, accuracy_score
+from sklearn.metrics import confusion_matrix,f1_score, accuracy_score, mean_squared_error
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
@@ -37,40 +37,58 @@ import functools
 
 #libraries for BART
 from bartpy.sklearnmodel import SklearnModel
-import pickle 
+import pickle
+import gc
 
-def BART(train, colnames,y01,name,load,filename):
-    #   
+def BART(train, colnames,y01,name,load):
+    #
     '''
     CATE: using a subset of the traning set to speed up
     '''
-
+    filename = 'bart_' +name
+    modelname = 'results\\'+filename + '.sav'
     X, X_, y, y_= train_test_split(train,y01, test_size=0.33,random_state=42)
-    if not load: 
+    if not load:
         #it takes a long time to run
-        model = SklearnModel(n_samples=1000, n_burn=200, n_trees=50, n_chains=1, n_jobs=-1, store_in_sample_predictions=False) 
+        model = SklearnModel(n_samples=800, n_burn=200, n_trees=40, n_chains=1, n_jobs=-1, store_in_sample_predictions=False)
         model.fit(np.array(X), y) # Fit the model
         # save the model to disk
-        pickle.dump(model, open(filename, 'wb'))
-    else: 
+        print('BART model is done!')
+        print('Saving pickle')
+        gc.collect() #test 1
+        pickle.dump(model, open(modelname, 'wb'))
+        print('Done saving pickle')
+    else:
         # load the model from disk
-        model = pickle.load(open(filename, 'rb'))
+        print('Load from pickle')
+        model = pickle.load(open(modelname, 'rb'))
+        print('Done load')
         result = model.score(X_test, Y_test)
 
     '''
-    y_pred = model.predict(X_) 
+    y_pred = model.predict(X_)
     cate = []
     for i in rante(len(colnames)):
         X_inter = X_test.copy()
-        X_inter[:,i] = 0 
+        X_inter[:,i] = 0
         y_inter = model.predict(X_inter)
-        #cate = 
-    
-    
-        ROC: split training/testing set and return results for testing set
-    '''
-    return #cate, roc, filename
+        cate.append(mean_squared_error(y_pred,y_inter))
 
+
+        ROC: split training/testing set and return results for testing set
+
+    predp = model.predict_proba(X_)
+    y_pred = [i[1] for i in predp]
+    print('F1:',f1_score(y_,y_pred),sum(y_pred),sum(y_))
+    fpr, tpr, _ = roc_curve(y_,y_pred)
+    auc = roc_auc_score(y_,y_pred)
+    roc = {'learners': name,
+           'fpr':fpr,
+           'tpr':tpr,
+           'auc':auc}
+    return cate, roc, filename
+    '''
+    return
 
 
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
@@ -147,15 +165,15 @@ def fm_PMF(train,k):
     rating['id'] = rating.index
     rating1 = pd.melt(rating,id_vars='id',var_name='genes', value_name='values')
     #rating.id = rating.id + 1
-    #rating.genes = rating.genes + 1 
+    #rating.genes = rating.genes + 1
     #shape: 20166364
-    print(rating1.shape)    
+    print(rating1.shape)
     rating2 = rating1.to_numpy() #
     print(rating2.shape)
     del rating, rating1
     #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
     train, test = train_test_split(rating2, test_size=0.2)  # spilt_rating_dat(ratings)
-    #epsilon, _lambda, momentum, maxepoch, num_batches, batch_size    
+    #epsilon, _lambda, momentum, maxepoch, num_batches, batch_size
     #("num_batches", 10), ("batch_size", 1000)
     pmf = models.PMF(num_feat=k,_lambda=0.1, maxepoch = 6, momentum = 0.1,epsilon=1)#.fit(train, test)
     pmf.fit(train, test)
@@ -164,14 +182,14 @@ def fm_PMF(train,k):
     x_gen = []
     for i in range(train.shape[0]):
         x_gen.append(pmf.predict(i))
-        
-    #models.PMF(num_feat=k,_lambda=0.1) RMSE 2.802363 
+
+    #models.PMF(num_feat=k,_lambda=0.1) RMSE 2.802363
     #models.PMF(num_feat=k,_lambda=0.3) RMSE 2.802346
     #models.PMF(num_feat=k,_lambda=0.8) RMSE 2.802315
-    #momentum = from 0.8 to 0.5: no difference 
+    #momentum = from 0.8 to 0.5: no difference
     #momentum from 0.8 to 1.5: RMSE increase and explode
-    #epsilon from 1 to 0.5: no differnce 
-    #epsilon from 1 to 2: no difference 
+    #epsilon from 1 to 0.5: no differnce
+    #epsilon from 1 to 2: no difference
     return w, u, np.array(x_gen)
 
 class PMF(object):
