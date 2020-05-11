@@ -18,7 +18,7 @@ def roc_plot(filename):
     roc_table1 = pd.read_pickle(filename)
     roc_table1.set_index('learners', inplace=True)
     
-    fig = plt.figure(figsize=(8,6))
+    fig = plt.figure(figsize=(12,9))
     
     for i in roc_table1.index:
         plt.plot(roc_table1.loc[i]['fpr'], 
@@ -26,7 +26,6 @@ def roc_plot(filename):
                  label="{}, AUC={:.3f}".format(i, roc_table1.loc[i]['auc']))
       
 
-      
     plt.plot([0,1], [0,1], color='orange', linestyle='--')
     
     plt.xticks(np.arange(0.0, 1.1, step=0.1))
@@ -36,7 +35,7 @@ def roc_plot(filename):
     plt.ylabel("True Positive Rate", fontsize=15)
     
     plt.title('ROC Curve Analysis', fontweight='bold', fontsize=15)
-    plt.legend(prop={'size':13}, loc='lower right')
+    plt.legend(prop={'size':13}, loc='lower right',ncol=2)
     
     plt.show()
     fig.savefig('results//plot_'+filename.split('//')[-1].split('.')[0]+'.png')

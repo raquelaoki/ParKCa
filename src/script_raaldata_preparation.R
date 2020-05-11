@@ -1,7 +1,7 @@
 rm(list=ls())
 #-----#-----#-----#-----#-----#-----#-----#-----#-----#-----#-----#
 
-setwd("~\\Documents\\GitHub\\project")
+setwd("~\\Documents\\GitHub\\parkca")
 
 #------------------------- CHANGE HERE TO DOWNLOAD DATA AGAIN
 donwload_clinical = FALSE
