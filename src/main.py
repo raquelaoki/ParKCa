@@ -5,11 +5,14 @@ import numpy as np
 import warnings
 warnings.simplefilter("ignore")
 
-path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+path = 'C://Users//raque//Documents//GitHub//ParKCa'
+
 sys.path.append(path+'//src')
 import datapreprocessing as dp
 import train as models
 import experiments as exp
+import numpy.random as npr
 from os import listdir
 from os.path import isfile, join
 os.chdir(path)
@@ -21,73 +24,103 @@ np.random.seed(randseed)
 
 pd.set_option('display.max_columns', 500)
 
-APPLICATION1 = True #driver genes APPLICATION1
+APPLICATION = True #driver genes APPLICATION1
+SIMULATION = False
 testing = True
+DA = False
+BART = True
 
-if APPLICATION1:
-    flag_first = True
+if APPLICATION:
     k_list = [15,30]
-    if testing: k_list = k_list[0:1]
     pathfiles = path+'\\data'
     listfiles = [f for f in listdir(pathfiles) if isfile(join(pathfiles, f))]
     b =100
     if testing:
         b = int(b/10)
-        k = k_list[0]
         listfiles = listfiles[15:16]
+        k = k_list[0]
         filename = listfiles[0]
-        print('testing\n')
         train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
-        print(filename,': ' ,train.shape[0])
         name = filename.split('_')[-1].split('.')[0]
-        #input train,k output w,z, x_gen
-        pmf = models.fm_PMF()
-        pmf.set_params({"num_feat": k, "epsilon": 1, "_lambda": 0.1, "momentum": 0.8, "maxepoch": 10, "num_batches": 100,
-                    "batch_size": 1000})
-        
-        ratings = pd.DataFrame(train)
-        ratings.columns = colnames
-        ratings['patient'] = ratings.index
-        ratings = pd.melt(ratings,id_vars=['patient'],var_name='genes', value_name='values')
-        ratings_ = []
-        for i in range(ratings.shape[0]):
-            ratings_.append([ratings.patient[i],
-                             ratings.genes[i],
-                             ratings.values[i]])
+        #coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
+        coef, roc, coln = models.BART(train,colnames, y01,name,False)
 
 
-        print(len(np.unique(ratings[:, 0])), len(np.unique(ratings[:, 1])), pmf.num_feat)
-        x_train, x_test = train_test_split(ratings, test_size=0.2)  # spilt_rating_dat(ratings)
-        pmf.fit(x_train, x_test)
-        
-        
-        
-        
-        #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
     else:
-        for k in k_list: 
-              
-             coefk_table = pd.DataFrame(columns=['genes'])
-             roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
-             count = 0 
-             for filename in listfiles:
-                 print('\n'+str(count)+' of '+ str(len(listfiles)))
-                 train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
-                 if train.shape[0]>150:  
-                    print(filename,': ' ,train.shape[0])
+        if DA:
+            print('DA')
+            skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
+            for k in k_list:
+                 coefk_table = pd.DataFrame(columns=['genes'])
+                 roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
+                 #test
+                 for filename in listfiles:
+                     train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
+                     if train.shape[0]>150:
+                        print(filename,': ' ,train.shape[0])
+                        #change filename
+                        name = filename.split('_')[-1].split('.')[0]
+                        if name not in skip:
+                            coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
+                            roc_table = roc_table.append(roc,ignore_index=True)
+                            coefk_table[coln] = coef
+
+                 print('--------- DONE ---------')
+                 coefk_table['genes'] = colnames
+
+                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
+                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
+                 exp.roc_plot('results//roc_'+str(k)+'.txt')
+
+        if BART:
+            print('BART')
+            coefk_table = pd.DataFrame(columns=['genes'])
+            roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
+            for filename in listfiles:
+                train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
+                if train.shape[0]>150:
+                   print(filename,': ' ,train.shape[0])
+                   name = filename.split('_')[-1].split('.')[0]
+                   load = True
+                   coef, roc, coln = models.BART(train,colnames, y01,name,load)
+                   roc_table = roc_table.append(roc,ignore_index=True)
+                   coefk_table[coln] = coef
+            print('--------- DONE ---------')
+            coefk_table['genes'] = colnames
+
+            roc_table.to_pickle('results//roc_'+'bart'+'.txt')
+            coefk_table.to_pickle('results//coef_'+'bart'+'.txt')
+            exp.roc_plot('results//roc_'+'bart'+'.txt')
+
+
+if SIMULATION:
+    #ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
+    vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
+    h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
+    #sim_load_vcf_to_h5(vcf_path,h5_path)
+    #S = dp.sim_load_h5_to_PCA(h5_path)
+    S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
+    n_units = 5000
+    n_causes = 10000# 10% var
+
+    G, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, D=3)
+    G = sim_dataset(G,lambdas, n_causes)
+    G = dp.add_colnames(G,tc)
+
+    train_s = np.asmatrix(G)
+    j, v = G.shape
+    name = 'simulation1'
+    print(name,': ' ,train_s.shape[0])
                     #change filename
-                    name = filename.split('_')[-1].split('.')[0]
-                    coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
-                    #organize columns names
-                    roc_table = roc_table.append(roc,ignore_index=True)
-                    coefk_table[coln] = coef
-                 else:
-                    print(filename,'(SKIP): ' ,train.shape[0])
-            
-             print('--------- DONE ---------')
-             coefk_table['genes'] = colnames
-             
-             roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-             coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-             exp.roc_plot('results//roc_'+str(k)+'.txt')                  
-                    
+    k = 15
+    b = 10
+    coef, roc, coln = models.deconfounder_PPCA_LR(train_s,G.columns,y01,name,k,10)
+    #roc_table = roc_table.append(roc,ignore_index=True)
+    #coefk_table[coln] = coef
+    tc01 =[1 if tc[i]>0 else 0 for i in range(len(tc))]
+    coef01 = [1 if coef[i]>0 else 0 for i in range(len(coef))]
+    from sklearn.metrics import confusion_matrix,f1_score, accuracy_score
+    confusion_matrix(tc01,coef01)
+    #Results are bad, but I think there is hope
+    #Copy others from application
+    #exp.roc_plot('results//sroc_'+str(k)+'.txt')

@@ -5,6 +5,7 @@ warnings.simplefilter("ignore")
 
 from os import listdir
 from os.path import isfile, join
+
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn import svm
@@ -12,26 +13,26 @@ from sklearn.decomposition import NMF, PCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
 from sklearn import metrics
-from sklearn.metrics import confusion_matrix,f1_score, accuracy_score
+from sklearn.metrics import confusion_matrix,f1_score, accuracy_score, mean_squared_error
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils.estimator_checks import check_estimator
 from sklearn.metrics import roc_curve,roc_auc_score
 from sklearn import linear_model
-
-from sklearn import calibration        
+from sklearn import calibration
 
 from scipy.stats import gamma
 from scipy import sparse, stats
+
 import statsmodels.discrete.discrete_model as sm
 
+#from tensorflow.keras import optimizers
 import tensorflow as tf #.compat.v2
 import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd
-
+tf.enable_eager_execution()
 import functools
-
 
 
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
@@ -49,13 +50,13 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     w,z, x_gen = fm_PPCA(x_train,k,True)
     filename = 'dappcalr_' +str(k)+'_'+name
     pvalue= daPredCheck(x_val,x_gen,w,z, holdout_mask)
-    alpha = 0.05 #for the IC test on outcome model 
+    alpha = 0.05 #for the IC test on outcome model
     low = stats.norm(0,1).ppf(alpha/2)
     up = stats.norm(0,1).ppf(1-alpha/2)
     #To speed up, I wont fit the PPCA to each boostrap iteration
     del x_gen
     if 0.1 < pvalue and pvalue < 0.9:
-        print('Pass Predictive Check:', filename )
+        print('Pass Predictive Check:', filename, '(',str(pvalue),')' )
         coef= []
         pca = np.transpose(z)
         for i in range(b):
@@ -63,43 +64,80 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
             rows = np.random.choice(train.shape[0], int(train.shape[0]*0.85), replace=False)
             X = train[rows, :]
             y01_b = y01[rows]
-            pca_b = pca[rows,:] 
+            pca_b = pca[rows,:]
             #w,pca, x_gen = fm_PPCA(X,k)
             #outcome model
             coef_, _ = outcome_model_ridge(X,colnames, pca_b,y01_b,False,filename)
             coef.append(coef_)
-        
-        
+
+
         coef = np.matrix(coef)
         coef = coef[:,0:train.shape[1]]
-        #Building IC 
+        #Building IC
         coef_m = np.asarray(np.mean(coef,axis=0)).reshape(-1)
         coef_var = np.asarray(np.var(coef,axis=0)).reshape(-1)
         coef_z = np.divide(coef_m,np.sqrt(coef_var/b))
         #1 if significative and 0 otherwise
-        coef_z = [ 1 if c>low and c<up else 0 for c in coef_z ] 
-        
-        
+        coef_z = [ 1 if c>low and c<up else 0 for c in coef_z ]
+
+
         #https://abdalimran.github.io/2019-06-01/Drawing-multiple-ROC-Curves-in-a-single-plot
-        #Calculating ROC with entire train    
+        '''
+        if ROC = TRUE, outcome model receive entire dataset, but internally split in training
+        and testing set. The ROC results and score is just for testing set
+        '''
         del X,pca,pca_b,y01_b
         del coef_var, coef, coef_
-        w,z, x_gen = fm_PPCA(train,k,False)    
+        w,z, x_gen = fm_PPCA(train,k,False)
         _,roc =  outcome_model_ridge(train,colnames, np.transpose(z),y01,True,filename)
         #df_ce =pd.merge(df_ce, causal_effect,  how='left', left_on='genes', right_on = 'genes')
         #df_roc[name_PCA]=roc
         #aux = pd.DataFrame({'model':[name_PCA],'gamma':[gamma],'gamma_l':[cil],'gamma_u':[cip]})
         #df_gamma = pd.concat([df_gamma,aux],axis=0)
         #df_gamma[name_PCA] = sparse.coo_matrix((gamma_ic),shape=(1,3)).toarray().tolist()
-    else: 
+    else:
         coef_m = []
         coef_z = []
         roc = []
 
     return np.multiply(coef_m,coef_z), roc, filename
+#it works, but all predictions where the same
+def fm_PMF(train,k):
+    rating = pd.DataFrame(train)
+    tab_colname = pd.DataFrame({'idcol':rating.columns,'gene':colnames.values.tolist() })
+    #rating.iloc[0:5,0:2]
+    rating['id'] = rating.index
+    rating1 = pd.melt(rating,id_vars='id',var_name='genes', value_name='values')
+    #rating.id = rating.id + 1
+    #rating.genes = rating.genes + 1
+    #shape: 20166364
+    print(rating1.shape)
+    rating2 = rating1.to_numpy() #
+    print(rating2.shape)
+    del rating, rating1
+    #filename = "data\\tcga_train_gexpression_cgc_7k.txt" #_2
+    train, test = train_test_split(rating2, test_size=0.2)  # spilt_rating_dat(ratings)
+    #epsilon, _lambda, momentum, maxepoch, num_batches, batch_size
+    #("num_batches", 10), ("batch_size", 1000)
+    pmf = models.PMF(num_feat=k,_lambda=0.1, maxepoch = 6, momentum = 0.1,epsilon=1)#.fit(train, test)
+    pmf.fit(train, test)
+    w = pmf.w_Item
+    u = pmf.w_User
+    x_gen = []
+    for i in range(train.shape[0]):
+        x_gen.append(pmf.predict(i))
 
-class fm_PMF(object):
-    #Reference:https://github.com/fuhailin/Probabilistic-Matrix-Factorization
+    #models.PMF(num_feat=k,_lambda=0.1) RMSE 2.802363
+    #models.PMF(num_feat=k,_lambda=0.3) RMSE 2.802346
+    #models.PMF(num_feat=k,_lambda=0.8) RMSE 2.802315
+    #momentum = from 0.8 to 0.5: no difference
+    #momentum from 0.8 to 1.5: RMSE increase and explode
+    #epsilon from 1 to 0.5: no differnce
+    #epsilon from 1 to 2: no difference
+    return w, u, np.array(x_gen)
+
+class PMF(object):
+    #reference: https://github.com/fuhailin/Probabilistic-Matrix-Factorization
     def __init__(self, num_feat=10, epsilon=1, _lambda=0.1, momentum=0.8, maxepoch=20, num_batches=10, batch_size=1000):
         self.num_feat = num_feat  # Number of latent features,
         self.epsilon = epsilon  # learning rate,
@@ -173,8 +211,8 @@ class fm_PMF(object):
 
                 # loop to aggreate the gradients of the same element
                 for i in range(self.batch_size):
-                    dw_Item[batch_ItemID[i], :] += Ix_Item[i, :]
-                    dw_User[batch_UserID[i], :] += Ix_User[i, :]
+                    dw_Item[batch_ItemID[i], :] += Ix_Item[i, :].astype(float)
+                    dw_User[batch_UserID[i], :] += Ix_User[i, :].astype(float)
 
                 # Update with momentum
                 self.w_Item_inc = self.momentum * self.w_Item_inc + self.epsilon * dw_Item / self.batch_size
@@ -240,7 +278,6 @@ class fm_PMF(object):
             recall_acc += intersection_cnt.get(inv, 0) / float(invPairs_cnt[int(inv)])
 
         return precision_acc / len(inv_lst), recall_acc / len(inv_lst)
-    
 
 def fm_PPCA(train,latent_dim, flag_pred):
     #Reference: https://github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_PCA.ipynb
@@ -282,7 +319,7 @@ def fm_PPCA(train,latent_dim, flag_pred):
 
     target_log_prob_fn = lambda w, z: model.log_prob((w, z, x_train))
     losses = tfp.math.minimize(lambda: -target_log_prob_fn(w, z),
-                               optimizer=tf.optimizers.Adam(learning_rate=0.05),
+                               optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
                                num_steps=200)
 
     qw_mean = tf.Variable(np.ones([data_dim, latent_dim]), dtype=tf.float32)
@@ -301,18 +338,18 @@ def fm_PPCA(train,latent_dim, flag_pred):
     losses = tfp.vi.fit_surrogate_posterior(
         target_log_prob_fn,
         surrogate_posterior=surrogate_posterior,
-        optimizer=tf.optimizers.Adam(learning_rate=0.1),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.1),
         num_steps=400)
 
 
-    
+
     x_generated = []
     if flag_pred:
         for i in range(50):
             _, _, x_g = model.sample(value=surrogate_posterior.sample(1))
             x_generated.append(x_g.numpy()[0])
-    
-    w, z = surrogate_posterior.variables        
+
+    w, z = surrogate_posterior.variables
 
     return w.numpy(),z.numpy(), x_generated
 
@@ -359,7 +396,6 @@ def daPredCheck(x_val,x_gen,w,z,holdout_mask):
     overall_pval = np.mean(pvals)
     return overall_pval
 
-
 def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
     input:
@@ -371,31 +407,31 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
     import scipy.stats as st
     model = linear_model.SGDClassifier(penalty='l2', alpha=0.1, l1_ratio=0.01,loss='modified_huber', fit_intercept=True,random_state=0)
-    
+
 
     #ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
-    
-    if roc_flag: 
+
+    if roc_flag:
         #use testing and training set
         x_aug = np.concatenate([x,x_latent],axis=1)
-        X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42) 
+        X_train, X_test, y_train, y_test = train_test_split(x_aug, y01_b, test_size=0.33, random_state=42)
         modelcv = calibration.CalibratedClassifierCV(base_estimator=model, cv=5, method='isotonic').fit(X_train, y_train)
         coef = []
-    
+
         pred = modelcv.predict(X_test)
         predp = modelcv.predict_proba(X_test)
         predp1 = [i[1] for i in predp]
-        print('F1 Score: ',f1_score(y_test,pred))
+        print('F1:',f1_score(y_test,pred),sum(pred),sum(y_test))
         fpr, tpr, _ = roc_curve(y_test, predp1)
         auc = roc_auc_score(y_test, predp1)
         roc = {'learners': name,
-               'fpr':fpr, 
-               'tpr':tpr, 
+               'fpr':fpr,
+               'tpr':tpr,
                'auc':auc}
-        
+
 
     else:
-        #don't split dataset 
+        #don't split dataset
         x_aug = np.concatenate([x,x_latent],axis=1)
         model.fit(x_aug, y01_b)
         coef = model.coef_[0]
