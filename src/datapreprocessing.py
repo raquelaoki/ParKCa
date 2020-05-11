@@ -253,7 +253,8 @@ def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D=3):
     S = np.column_stack((S[npr.choice(S.shape[0],size=n_units,replace=True),], \
         np.ones(n_units)))
     F = S.dot(Gammamat.T)
-    G = npr.binomial(2, F)
+    #it was 2 instead of 1: goal is make SNPs binary
+    G = npr.binomial(1, F)
     #unobserved group
     lambdas = KMeans(n_clusters=3, random_state=123).fit(S).labels_
     sG = sparse.csr_matrix(G)

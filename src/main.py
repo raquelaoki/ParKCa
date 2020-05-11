@@ -26,9 +26,9 @@ pd.set_option('display.max_columns', 500)
 
 APPLICATION = True #driver genes APPLICATION1
 SIMULATION = False
-testing = False
-DA = True
-BART = False
+testing = True
+DA = False
+BART = True
 
 if APPLICATION:
     k_list = [15,30]
