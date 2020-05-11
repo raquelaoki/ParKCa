@@ -28,10 +28,10 @@ from scipy import sparse, stats
 import statsmodels.discrete.discrete_model as sm
 
 #from tensorflow.keras import optimizers
-import tensorflow as tf #.compat.v2
-import tensorflow_probability as tfp
-from tensorflow_probability import distributions as tfd
-tf.enable_eager_execution()
+#import tensorflow as tf #.compat.v2
+#import tensorflow_probability as tfp
+#from tensorflow_probability import distributions as tfd
+#tf.enable_eager_execution()
 import functools
 
 
