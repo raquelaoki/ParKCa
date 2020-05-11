@@ -27,8 +27,10 @@ pd.set_option('display.max_columns', 500)
 APPLICATION = False #driver genes APPLICATION1
 SIMULATION = True
 testing = True
-DA = True
+DA = False
 BART = False
+CEVAE = True
+
 
 if APPLICATION:
     k_list = [15,30]
@@ -115,6 +117,8 @@ if SIMULATION:
                     #change filename
     k = 15
     b = 10
+    if CEVAE: 
+        
     ##coef, roc, coln = models.deconfounder_PPCA_LR(train_s,G.columns,y01,name,k,10)
     #roc_table = roc_table.append(roc,ignore_index=True)
     #coefk_table[coln] = coef
