@@ -24,11 +24,11 @@ np.random.seed(randseed)
 
 pd.set_option('display.max_columns', 500)
 
-APPLICATION = True #driver genes APPLICATION1
-SIMULATION = False
+APPLICATION = False #driver genes APPLICATION1
+SIMULATION = True
 testing = True
-DA = False
-BART = True
+DA = True
+BART = False
 
 if APPLICATION:
     k_list = [15,30]
@@ -103,10 +103,11 @@ if SIMULATION:
     n_units = 5000
     n_causes = 10000# 10% var
 
-    G, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, D=3)
-    G = sim_dataset(G,lambdas, n_causes)
-    G = dp.add_colnames(G,tc)
-
+    G0, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, D=3)
+    G1, tc = dp.sim_dataset(G0,lambdas, n_causes,n_units)
+    G = dp.add_colnames(G1,tc)
+    del G0,G1
+    
     train_s = np.asmatrix(G)
     j, v = G.shape
     name = 'simulation1'
@@ -114,13 +115,13 @@ if SIMULATION:
                     #change filename
     k = 15
     b = 10
-    coef, roc, coln = models.deconfounder_PPCA_LR(train_s,G.columns,y01,name,k,10)
+    ##coef, roc, coln = models.deconfounder_PPCA_LR(train_s,G.columns,y01,name,k,10)
     #roc_table = roc_table.append(roc,ignore_index=True)
     #coefk_table[coln] = coef
-    tc01 =[1 if tc[i]>0 else 0 for i in range(len(tc))]
-    coef01 = [1 if coef[i]>0 else 0 for i in range(len(coef))]
-    from sklearn.metrics import confusion_matrix,f1_score, accuracy_score
-    confusion_matrix(tc01,coef01)
+    ##tc01 =[1 if tc[i]>0 else 0 for i in range(len(tc))]
+    ##coef01 = [1 if coef[i]>0 else 0 for i in range(len(coef))]
+    ##from sklearn.metrics import confusion_matrix,f1_score, accuracy_score
+    ##confusion_matrix(tc01,coef01)
     #Results are bad, but I think there is hope
     #Copy others from application
     #exp.roc_plot('results//sroc_'+str(k)+'.txt')

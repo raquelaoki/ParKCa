@@ -158,16 +158,16 @@ def sim_load_h5_to_PCA(h5_path):
     np.savetxt('data_s//tgp_pca'+str(k)+'.txt', coords1, delimiter=',')
     return coords1
 
-def sim_dataset(G,lambdas,n_causes):
-    tc_ = npr.normal(loc = 0 , scale=1, size=n_causes)
+def sim_dataset(G0,lambdas,n_causes,n_units):
+    tc_ = npr.normal(loc = 0 , scale=0.5*0.5, size=n_causes)
     #True causes
-    tc = [i if i>np.quantile(tc_,0.99) else 0 for i in b_]#truncate so only 1% are different from 0
+    tc = [i if i>np.quantile(tc_,0.99) else 0 for i in tc_]#truncate so only 1% are different from 0
     sigma = np.zeros(n_units)
-    sigma = [4*4 if lambdas[j]==0 else sigma[j] for j in range(len(sigma))]
-    sigma = [7*7 if lambdas[j]==1 else sigma[j] for j in range(len(sigma))]
-    sigma = [2*2 if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
-    y0 = np.array(tc).reshape(1,-1).dot(np.transpose(G))
-    y1 = 30*lambdas.reshape(1,-1)
+    sigma = [2*2 if lambdas[j]==0 else sigma[j] for j in range(len(sigma))]
+    sigma = [4.5*4.5 if lambdas[j]==1 else sigma[j] for j in range(len(sigma))]
+    sigma = [1*1 if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
+    y0 = np.array(tc).reshape(1,-1).dot(np.transpose(G0))
+    y1 = 15*lambdas.reshape(1,-1)
     y2 = npr.normal(0,sigma,n_units).reshape(1,-1)
     y = y0 + y1 + y2
     p = 1/(1+np.exp(y0 + y1 + y2))
@@ -183,8 +183,8 @@ def sim_dataset(G,lambdas,n_causes):
     print(sum(y01), len(y01))
 
 
-    G = dp.add_colnames(G,tc)
-    return G
+    G = add_colnames(G0,tc)
+    return G, tc
 
 def add_colnames(data, truecauses):
     colnames = []
@@ -198,7 +198,7 @@ def add_colnames(data, truecauses):
             colnames.append('noncausal_'+str(noncauses))
             noncauses+=1
 
-    data = pd.DataFrame(G)
+    data = pd.DataFrame(data)
     data.columns = colnames
     return data
 
