@@ -9,10 +9,6 @@ Causality for Computational Biology
 
 ### Packages: 
 * conda install git
-* pip install "git+https://github.com/google/edward2.git#egg=edward2"
-* pip install -e "git+https://github.com/google/edward2.git#egg=edward2"
-* conda install -c conda-forge tensorflow=1.15
-* conda install -c conda-forge tensorflow-probability
 * conda install -c anaconda pandas
 * conda install -c anaconda numpy
 * conda install -c anaconda scikit-learn
@@ -22,4 +18,10 @@ Causality for Computational Biology
 * conda install -c conda-forge scikit-allel
 * conda install -c conda-forge progressbar
 * conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+
+
+Optional:
+* pip install -e "git+https://github.com/google/edward2.git#egg=edward2"
+* conda install -c conda-forge tensorflow=1.15
+* conda install -c conda-forge tensorflow-probability
 
