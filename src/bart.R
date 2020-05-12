@@ -1,0 +1,124 @@
+#----------#----------#----------#----------#----------#----------#----------#
+#----------#----------#----------#----------#----------#----------#----------#
+#Author: Raquel AOki
+#December 2019
+#----------#----------#----------#----------#----------#----------#----------#
+#----------#----------#----------#----------#----------#----------#----------#
+
+#Description: Given dataset, use BART and GFCI as causal methods
+rm(list=ls())
+
+
+RUN_CATE = FALSE
+
+#Save pred prob for py
+
+#----------#----------#----------#----------#----------#----------#----------#
+#BART
+#----------#----------#----------#----------#----------#----------#----------#
+options(java.parameters = "-Xmx5g")
+#if(!require(bartMachine)) install.packages("bartMachine")
+library(bartMachine)
+#https://cran.r-project.org/web/packages/bartMachine/vignettes/bartMachine.pdf
+#recommended package BayesTrees is not functional anymore
+
+setwd("~/GitHub/parkca")
+filenames =  list.files(path = "GitHub/../data",all.files = TRUE)
+filenames = filenames[filenames!='.']
+filenames = filenames[filenames!='..']
+
+
+for(i in 1:length(filenames)){
+
+data = read.table(paste('data/',filenames[i],sep=''), sep = ';', header = T)
+data <- data[sample(nrow(data),replace=FALSE),] #shuffle data
+
+if(dim(data)[1]>400){
+
+#Splitting data
+train_index <- sample(1:nrow(data), 0.8 * nrow(data))
+test_index <- setdiff(1:nrow(data), train_index)
+
+#Training
+E = data[train_index,c(1,2,3)] #Extra
+X = data[train_index,-c(1,2,3)]
+y = as.factor(E$y)
+
+#Testing
+E_ = data[test_index,c(1,2,3)]
+X_ = data[test_index,-c(1,2,3)]
+y_ = as.factor(E_$y)
+
+name = strsplit(filenames[i],"_", fixed= TRUE)
+name = strsplit(name[[1]][length(name[[1]])],".", fixed = TRUE)[[1]][1]
+coef_name = paste('bart_', name, sep = '')
+name =  paste("./results/bart_",name,".rds", sep="")
+
+#CHECK IF FILE EXIST
+check =list.files(path = "GitHub/../results",all.files = TRUE)
+if(sum( name == check) != 0){
+  #load BART
+  bart_machine <- readRDS(name)
+}else{
+  #BART model
+  bart_machine = bartMachine(X, y, num_trees = 50, num_burn_in = 500, num_iterations_after_burn_in = 1400 )
+  summary(bart_machine)
+  saveRDS(bart_machine, name)
+}
+
+#making predictions
+pred_ = predict(bart_machine, X_, type='prob') #'class' or 'prob'
+predictions = data.frame(y_,pred_)
+names(predictions) = c('obs','pred')
+write.table(predictions,gsub('.rds','.txt',name), sep = ';', row.names = FALSE)
+
+
+if(RUN_CATE){
+  #making the interventional data, one for each gene
+  pred_ =  mean(predict(bart_machine, X_, type='prob'))
+  coef = data.frame(gene = names(X), cate = c(rep(999, dim(X)[2])))
+
+  if(i==1){
+    coef_ = data.frame(gene = names(X))
+    coef_$current = c(999)
+  }else{
+    coef_$current = c(999)
+  }
+
+  #Simulations
+  s = 30
+  for(v in 1:dim(data_test)[2]){
+    X_i = X_
+    X_i[,v] = 0
+
+    pred_i = c(rep(0,s))
+    for(s in 1:s){
+      X_i_s = X_i[sample(dim(X_i)[1],floor(dim(X_i)[1]*0.85)),]
+      pred_i[s] = mean(predict(bart_machine, X_i_s))
+    }
+    dif = pred_ - pred_i
+    dif0 = mean(dif)/(var(dif)/s)^0.5
+    if(dif0>qnorm(0.025) & dif0<qnorm(0.975)) coef$cate[v] =  mean(dif) else coef$cate[v] =  0
+
+
+    #Saving
+    if(v%%200==0){
+      coef_$current = coef$cate
+      write.table(coef_,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
+      saveRDS(coef_, coef_name)
+    }
+
+  }
+  names(coef_)[dim(coef_)[2]] = coef_name
+  coef_$current = c(999)
+  write.table(coef_,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
+  saveRDS(coef_, coef_name)
+}
+}
+}
+
+if(RUN_CATE){
+  coef_ = subset(coef_, select = -c(current))
+  write.table(coef_,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
+  saveRDS(coef_, coef_name)
+}
