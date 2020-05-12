@@ -34,6 +34,57 @@ import statsmodels.discrete.discrete_model as sm
 #tf.enable_eager_execution()
 import functools
 
+#libraries for BART
+from bartpy.sklearnmodel import SklearnModel
+import pickle
+import gc
+
+def BART(train, colnames,y01,name,load):
+    #
+    '''
+    CATE: using a subset of the traning set to speed up
+    '''
+    filename = 'bart_' +name
+    modelname = 'results\\'+filename + '.sav'
+    X, X_, y, y_= train_test_split(train,y01, test_size=0.33,random_state=42)
+    if not load:
+        #it takes a long time to run
+        model = SklearnModel(n_samples=800, n_burn=200, n_trees=40, n_chains=1, n_jobs=-1, store_in_sample_predictions=False)
+        model.fit(np.array(X), y) # Fit the model
+        # save the model to disk
+        print('BART model is done!')
+        print('Saving pickle')
+        gc.collect() #test 1
+        pickle.dump(model, open(modelname, 'wb'))
+        print('Done saving pickle')
+    else:
+        # load the model from disk
+        print('Load from pickle')
+        model = pickle.load(open(modelname, 'rb'))
+        print('Done load')
+        result = model.score(X_test, Y_test)
+
+    '''
+    y_pred = model.predict(X_)
+    cate = []
+    for i in rante(len(colnames)):
+        X_inter = X_test.copy()
+        X_inter[:,i] = 0
+        y_inter = model.predict(X_inter)
+        cate.append(mean_squared_error(y_pred,y_inter))
+        ROC: split training/testing set and return results for testing set
+    predp = model.predict_proba(X_)
+    y_pred = [i[1] for i in predp]
+    print('F1:',f1_score(y_,y_pred),sum(y_pred),sum(y_))
+    fpr, tpr, _ = roc_curve(y_,y_pred)
+    auc = roc_auc_score(y_,y_pred)
+    roc = {'learners': name,
+           'fpr':fpr,
+           'tpr':tpr,
+           'auc':auc}
+    return cate, roc, filename
+    '''
+    return
 
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     '''
