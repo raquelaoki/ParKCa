@@ -5,8 +5,8 @@ import numpy as np
 import warnings
 warnings.simplefilter("ignore")
 
-#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
-path = 'C://Users//raque//Documents//GitHub//ParKCa'
+path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+#path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
 import datapreprocessing as dp
