@@ -9,7 +9,7 @@
 rm(list=ls())
 
 
-RUN_CATE = FALSE
+RUN_CATE = TRUE
 
 #Save pred prob for py
 
@@ -26,6 +26,7 @@ setwd("~/GitHub/parkca")
 filenames =  list.files(path = "GitHub/../data",all.files = TRUE)
 filenames = filenames[filenames!='.']
 filenames = filenames[filenames!='..']
+filenames = filenames[16:18]
 
 
 for(i in 1:length(filenames)){
@@ -33,7 +34,7 @@ for(i in 1:length(filenames)){
 data = read.table(paste('data/',filenames[i],sep=''), sep = ';', header = T)
 data <- data[sample(nrow(data),replace=FALSE),] #shuffle data
 
-if(dim(data)[1]>400){
+if(dim(data)[1]>800){
 
 #Splitting data
 train_index <- sample(1:nrow(data), 0.8 * nrow(data))
@@ -56,12 +57,13 @@ name =  paste("./results/bart_",name,".rds", sep="")
 
 #CHECK IF FILE EXIST
 check =list.files(path = "GitHub/../results",all.files = TRUE)
+check = paste('./results/',check,sep='')
 if(sum( name == check) != 0){
   #load BART
   bart_machine <- readRDS(name)
 }else{
   #BART model
-  bart_machine = bartMachine(X, y, num_trees = 50, num_burn_in = 500, num_iterations_after_burn_in = 1400 )
+  bart_machine = bartMachine(X, y, num_trees = 50, num_burn_in = 500, num_iterations_after_burn_in = 1400,serialize = TRUE)
   summary(bart_machine)
   saveRDS(bart_machine, name)
 }
@@ -87,7 +89,7 @@ if(RUN_CATE){
 
   #Simulations
   s = 30
-  for(v in 1:dim(data_test)[2]){
+  for(v in 1:dim(X_)[2]){
     X_i = X_
     X_i[,v] = 0
 
@@ -98,7 +100,7 @@ if(RUN_CATE){
     }
     dif = pred_ - pred_i
     dif0 = mean(dif)/(var(dif)/s)^0.5
-    if(dif0>qnorm(0.025) & dif0<qnorm(0.975)) coef$cate[v] =  mean(dif) else coef$cate[v] =  0
+    if(dif0>qnorm(0.01) & dif0<qnorm(0.99)) coef$cate[v] =  mean(dif) else coef$cate[v] =  0
 
 
     #Saving
@@ -114,7 +116,9 @@ if(RUN_CATE){
   write.table(coef_,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
   saveRDS(coef_, coef_name)
 }
+
 }
+
 }
 
 if(RUN_CATE){
@@ -122,3 +126,15 @@ if(RUN_CATE){
   write.table(coef_,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
   saveRDS(coef_, coef_name)
 }
+
+
+for(i in 1:length(filenames)){
+  
+  data = read.table(paste('data/',filenames[i],sep=''), sep = ';', header = T)
+  data <- data[sample(nrow(data),replace=FALSE),] #shuffle data
+  cat('\n')
+  cat(filenames[i])
+  cat(dim(data)) 
+  
+  }
+
