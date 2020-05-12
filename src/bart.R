@@ -88,20 +88,20 @@ if(RUN_CATE){
   }
 
   #Simulations
-  s = 30
+  s = 60
   for(v in 1:dim(X_)[2]){
     X_i = X_
     X_i[,v] = 0
 
     pred_i = c(rep(0,s))
+    pred_i_all = predict(bart_machine, X_i)
     for(s in 1:s){
-      X_i_s = X_i[sample(dim(X_i)[1],floor(dim(X_i)[1]*0.85)),]
-      pred_i[s] = mean(predict(bart_machine, X_i_s))
+      #X_i_s = X_i[sample(dim(X_i)[1],floor(dim(X_i)[1]*0.85)),]
+      pred_i[s] = sample(pred_i_all,floor(dim(X_i)[1]*0.85))  
     }
     dif = pred_ - pred_i
     dif0 = mean(dif)/(var(dif)/s)^0.5
-    if(dif0>qnorm(0.01) & dif0<qnorm(0.99)) coef$cate[v] =  mean(dif) else coef$cate[v] =  0
-
+    if(dif0>qnorm(0.025) & dif0<qnorm(0.975)) coef$cate[v] =  mean(dif) else coef$cate[v] =  0
 
     #Saving
     if(v%%200==0){
