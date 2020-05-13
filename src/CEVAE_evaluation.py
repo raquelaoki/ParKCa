@@ -27,6 +27,7 @@ class Evaluator(object):
     def pehe(self, ypred1, ypred0):
         return np.sqrt(np.mean(np.square((self.mu1 - self.mu0) - (ypred1 - ypred0))))
 
+    #DO NOT CALL THIS FUNCTION
     def y_errors(self, y0, y1):
         ypred = (1 - self.t) * y0 + self.t * y1
         ypred_cf = self.t * y0 + (1 - self.t) * y1
@@ -37,6 +38,7 @@ class Evaluator(object):
         rmse_cfactual = np.sqrt(np.mean(np.square(ypred_cf - self.y_cf)))
         return rmse_factual, rmse_cfactual
 
+    #DO NOT CALL THIS FUNCTION
     def calc_stats(self, ypred1, ypred0):
         ite = self.rmse_ite(ypred1, ypred0)
         ate = self.abs_ate(ypred1, ypred0)

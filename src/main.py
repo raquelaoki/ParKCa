@@ -10,6 +10,7 @@ path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
 import datapreprocessing as dp
+import CEVAE as cevae
 import train as models
 import experiments as exp
 import numpy.random as npr
@@ -24,12 +25,12 @@ np.random.seed(randseed)
 
 pd.set_option('display.max_columns', 500)
 
-APPLICATION = True #driver genes APPLICATION1
-SIMULATION = False
-testing = False
-DA = True
-BART = False 
-CEVAE = False
+APPLICATION = False #driver genes APPLICATION1
+SIMULATION = True
+testing = True
+DA = False
+BART = False
+CEVAE = True
 
 
 if APPLICATION:
@@ -45,13 +46,12 @@ if APPLICATION:
         train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
         name = filename.split('_')[-1].split('.')[0]
         #coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
-        coef, roc, coln = models.BART(train,colnames, y01,name,False)
 
 
     else:
         if DA:
             print('DA')
-            skip = ['CHOL','LUSC','HNSC','PRAD', 'ESCA','PAAD','SARC','LIHC'] #F1 score very low or roc bad
+            skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
             for k in k_list:
                  coefk_table = pd.DataFrame(columns=['genes'])
                  roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
@@ -69,7 +69,6 @@ if APPLICATION:
 
                  print('--------- DONE ---------')
                  coefk_table['genes'] = colnames
-             
 
                  roc_table.to_pickle('results//roc_'+str(k)+'.txt')
                  coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
@@ -78,9 +77,8 @@ if APPLICATION:
         if BART:
             print('BART')
             #MODEL AND PREDICTIONS MADE ON R
-            filenames=['bart_all.txt','bart_all0.txt','bart_all1.txt']
-            filenames = ['results//'+f for f in filenames]
-            exp.roc_table_creation(filenames,'bart')
+            filenames=['bart_all.txt','bart_all.txt','bart_all.txt']
+            exp.roc_table_creation(filenames)
             exp.roc_plot('results//roc_'+'bart'+'.txt')
 
 
@@ -94,20 +92,30 @@ if SIMULATION:
     n_units = 5000
     n_causes = 10000# 10% var
 
+
+
     G0, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, D=3)
-    G1, tc = dp.sim_dataset(G0,lambdas, n_causes,n_units)
+    G1, tc, y01 = dp.sim_dataset(G0,lambdas, n_causes,n_units)
     G = dp.add_colnames(G1,tc)
     del G0,G1
 
     train_s = np.asmatrix(G)
     j, v = G.shape
-    name = 'simulation1'
     print(name,': ' ,train_s.shape[0])
                     #change filename
     k = 15
     b = 10
     if CEVAE:
-        print('as')
+        y0, y1, y01_pred, yte, loss = cevae.model(n_causes,0,train_s,y01)
+        #y0 and y1: samples of treatment values 
+        #y01_pred and yte : predicted and observed outcome 
+ 
+        
+    y01_pred_ = [1 if i >0.5 else 0 for i in y_pred]
+
+    f1_score(yte,y01_pred_)
+    f1_score(yte,npr.binomial(1,yte.sum()/len(yte),size=len(yte)))
+    
     ##coef, roc, coln = models.deconfounder_PPCA_LR(train_s,G.columns,y01,name,k,10)
     #roc_table = roc_table.append(roc,ignore_index=True)
     #coefk_table[coln] = coef

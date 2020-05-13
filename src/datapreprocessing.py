@@ -184,7 +184,7 @@ def sim_dataset(G0,lambdas,n_causes,n_units):
 
 
     G = add_colnames(G0,tc)
-    return G, tc
+    return G, tc,y01
 
 def add_colnames(data, truecauses):
     colnames = []
