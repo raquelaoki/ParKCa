@@ -2,6 +2,7 @@ extra/
 data/
 data_s/
 __pycache__/
+plots_cevae/
 
 .Rhistory
 .rds

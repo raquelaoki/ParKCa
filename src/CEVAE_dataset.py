@@ -3,11 +3,10 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 
 class DATA(object):
-    def __init__(self, ncol,tcol, data_path, y01, replications = 10): #path_data="datasets/IHDP/csv",  replications=10
+    def __init__(self, ncol, data_path, y01, replications = 101): #path_data="datasets/IHDP/csv",  replications=10
         #self.data_s = data_path
-        self.data_s = data_path
+        self.data = np.matrix(pd.read_pickle(data_path))
         self.ncol = ncol
-        self.tcol = tcol
         self.y01 = y01
         self.replications = replications
         # which features are binary
@@ -18,18 +17,18 @@ class DATA(object):
     def __iter__(self):
         for i in range(self.replications):
             #data = self.data_s #np.loadtxt(self.path_data + '/ihdp_npci_' + str(i + 1) + '.csv', delimiter=',')
-            data =  np.matrix(pd.read_pickle(self.data_s+str(i)+'.txt'))
+            data = self.data
             #y = self.y01[:,self.tcol]
             #t, x = data[:,self.tcol], np.delete(data,self.tcol,1)
-            t, y , x = data[:,self.tcol], self.y01[:,i], np.delete(data,self.tcol,1)
+            t, y , x = data[:,i], self.y01, np.delete(data,i,1)
             yield (x, t, y)#, (y_cf, mu_0, mu_1)
 
     def get_train_valid_test(self):
         for i in range(self.replications):
-            data =  np.matrix(pd.read_pickle(self.data_s+str(self.tcol)+'.txt'))
+            data = self.data
             #y = self.y01[:,self.tcol]
             #t, x = data[:,self.tcol],  np.delete(data,self.tcol,1)
-            t, y , x = data[:,self.tcol], np.asmatrix(self.y01[:,i]).reshape(-1,1), np.delete(data,self.tcol,1)
+            t, y , x = data[:,i], np.asmatrix(self.y01).reshape(-1,1), np.delete(data,i,1)
             #t, y, y_cf = data[:, 0][:, np.newaxis], data[:, 1][:, np.newaxis], data[:, 2][:, np.newaxis]
             #mu_0, mu_1, x = data[:, 3][:, np.newaxis], data[:, 4][:, np.newaxis], data[:, 5:]
 

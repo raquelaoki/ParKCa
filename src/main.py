@@ -133,24 +133,36 @@ if CEVAE:
     
     #testing
     start_time = time.time()
-    train_path = 'data_s//snp_simulated_'
+    train_path = 'data_s//snp_simulated_0.txt'
     y01_path = 'data_s//snp_simulated_y01.txt'
-    y01 = np.asmatrix(pd.read_pickle(y01_path))
+    y01 = np.asmatrix(pd.read_pickle(y01_path))[:,0]
     #for t in range(SIMULATIONS):
         #CHECK INDEXS, I THINK IM DOING WRONG ASSOCIATIONS
-    t = 0 
-    for (y0, y1, y01_pred, yte, loss) in cevae.model(n_causes,t,train_path,y01):
-        print(y0.shape,y01_pred.shape,len(loss))
-    fig = plt.figure(figsize=(6,4))
-    plt.plot(loss, label='Total')
-    plt.title('Variational Lower Bound',fontsize=15)
-    plt.show()    
-    fig.savefig('results//plots_cevae//cevae_'+str(t)+'.png')
+    at0 = []
+    at1 = []
+    cate = []
+    y01_predicted =[]
+    y01_ = []  
     
+    for (y0, y1, y10, y01_pred, yte) in cevae.model(n_causes,train_path,y01):
+        at0.append(y0)
+        at1.append(y1)
+        cate.append(y10)
+        y01_predicted.append(y01_pred)
+        y01_.append(yte)
+        if len(at0)%100 == 0: 
+            output = pd.DataFrame({'at0':at0,
+                                   'at1':at1,
+                                   'cate':cate})
+            predictions = pd.DataFrame(np.matrix(y01_predicted))
+            testing_set = pd.DataFrame(np.matrix(y01_))
+            output.to_pickle('results//simulations//cevae_output.txt')
+            predictions.to_pickle('results//simulations//cevae_pred.txt')
+            testing_set.to_pickle('results//simulations//cevae_test.txt')
+            
+
     print("--- %s minutes ---" % str((time.time() - start_time)/60))
     #y0 and y1: samples of treatment values
-        #y01_pred and yte : predicted and observed outcome
-        #roc 
         #roc_table = roc_table.append(roc,ignore_index=True)
         #cate = y1[:,0].mean() - y0[:,0].mean()
         #if t%100==0:
