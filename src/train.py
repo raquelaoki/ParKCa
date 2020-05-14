@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import warnings
 warnings.simplefilter("ignore")
+import eval as eval
+import datapreprocessing as dp
+#import CEVAE as cevae
 
 from os import listdir
 from os.path import isfile, join
@@ -35,6 +38,7 @@ from tensorflow_probability import distributions as tfd
 tf.enable_eager_execution()
 import functools
 
+#Learners
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     '''
     input:
@@ -263,3 +267,248 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     #extra = pd.DataFrame({'genes':colnames,colname1+'_icl': coef_low,colname1+'_icu':coef_up })
 
     return coef, roc
+
+def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
+    '''
+    Function to run the application.
+    INPUT:
+    bool variables
+    path: path for level 0 data
+    OUTPUT:
+    plots, coefficients and roc data (to_pickle format)
+
+    NOTE: This code does not run the BART, it only reads the results.
+    BART model was run using R
+    '''
+    if APPLICATION:
+        k_list = [15,30]
+        pathfiles = path+'\\data'
+        listfiles = [f for f in listdir(pathfiles) if isfile(join(pathfiles, f))]
+        b =100
+
+        if DA:
+            print('DA')
+            skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
+            for k in k_list:
+                 coefk_table = pd.DataFrame(columns=['genes'])
+                 roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
+                 #test
+                 for filename in listfiles:
+                     train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
+                     if train.shape[0]>150:
+                        print(filename,': ' ,train.shape[0])
+                        #change filename
+                        name = filename.split('_')[-1].split('.')[0]
+                        if name not in skip:
+                            coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
+                            roc_table = roc_table.append(roc,ignore_index=True)
+                            coefk_table[coln] = coef
+
+                 print('--------- DONE ---------')
+                 coefk_table['genes'] = colnames
+
+                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
+                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
+                 eval.roc_plot('results//roc_'+str(k)+'.txt')
+
+        if BART:
+            print('BART')
+            #MODEL AND PREDICTIONS MADE ON R
+            filenames=['results//bart_all.txt','results//bart_MALE.txt','results//bart_FEMALE.txt']
+            eval.roc_table_creation(filenames,'bart')
+            eval.roc_plot('results//roc_'+'bart'+'.txt')
+
+        if BART and DA
+        filenames=['results//roc_bart.txt','results//roc_15.txt']
+        eval.roc_plot_all(filenames)
+
+#Meta-learner
+def class_models(y,y_test,X,X_test,name_model):
+    """
+    Input:
+        X,y,X_test, y_test: dataset to train the model
+    Return:
+        cm: confusion matrix for the testing set
+        cm_: confusion matrix for the full dataset
+        y_all_: prediction for the full dataset
+    """
+    X_full = np.concatenate((X,X_test), axis = 0 )
+    y_full = np.concatenate((y,y_test), axis = 0 )
+    warnings.filterwarnings("ignore")
+    if name_model == 'nn':
+        #IMPLEMENT
+
+    elif name_model == 'adapter':
+        #keep prob
+        #csv don't have nu
+        print('adapter',X.shape[1])
+        #it was c=0.5
+        estimator = SVC(C=0.3, kernel='rbf',gamma='scale',probability=True)
+        model = PUAdapter(estimator, hold_out_ratio=0.3)
+        X = np.matrix(X)
+        y = np.array(y)
+        model.fit(X, y)
+
+    elif name_model == 'upu':
+        '''
+        pul: nnpu (Non-negative PU Learning), pu_skc(PU Set Kernel Classifier),
+        pnu_mr:PNU classification and PNU-AUC optimization (the one tht works: also use negative data)
+        nnpu is more complicated (neural nets, other methos seems to be easier)
+        try https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/pu_skc/demo_pu_skc.py
+        and https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
+         '''
+        print('upu', X.shape[1])
+        #Implement these, packages only work on base anaconda (as autoenconder)
+        #https://github.com/t-sakai-kure/pywsl
+        prior =.5 #change for the proportion of 1 and 0
+        param_grid = {'prior': [prior],
+                          'lam': np.logspace(-3, 1, 5), #what are these values
+                          'basis': ['lm']}
+        lambda_list = np.logspace(-3, 1, 5)
+        #upu (Unbiased PU learning)
+        #https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
+        model = GridSearchCV(estimator=pu_mr.PU_SL(),
+                               param_grid=param_grid, cv=10, n_jobs=-1)
+        X = np.matrix(X)
+        y = np.array(y)
+        model.fit(X, y)
+
+    elif name_model == 'lr':
+        print('lr',X.shape[1])
+        model = sm.Logit(y,X).fit_regularized(method='l1')
+
+    elif name_model=='rf':
+        print('rd',X.shape[1])
+        md = max(np.floor(X.shape[1]/3),6)
+        model = RandomForestClassifier(max_depth=md, random_state=0)
+        model.fit(X, y)
+
+    else:
+        print('random',X.shape[1])
+
+    if name_model=='random':
+        y_ = np.random.binomial(n=1,p=y.sum()/len(y),size =X_test.shape[0])
+        y_full_ = np.random.binomial(n=1,p=y.sum()/len(y),size=X_full.shape[0])
+    else:
+        y_ = model.predict(X_test)
+        y_full_ = model.predict(X_full)
+
+    if name_model == 'lr':
+        #y_ = 1- y_
+        #y_full_ = 1- y_full_
+        y_[y_<0.5] = 0
+        y_[y_>=0.5] = 1
+        y_full_[y_full_< 0.5] = 0
+        y_full_[y_full_>=0.5] = 1
+
+    y_ = np.where(y_==-1,0,y_)
+    y_full_ = np.where(y_full_==-1, 0,y_full_)
+
+    acc = accuracy_score(y_test,y_)
+    acc_f = accuracy_score(y_full, y_full_)
+    f1 = f1_score(y_test,y_)
+    f1_f = f1_score(y_full, y_full_)
+    tnfpfntp = confusion_matrix(y_test,y_).ravel()
+    tnfpfntp_= confusion_matrix(y_full, y_full_).ravel()
+    tp_genes = np.multiply(y_full, y_full_)
+    warnings.filterwarnings("default")
+    return [acc, acc_f, f1, f1_f], tnfpfntp, tnfpfntp_, tp_genes,y_,y_full_
+
+def data_running_models(data_list, names, name_in, name_out, is_bin, id):
+    '''
+    input: list with combinations of features and the names of the datsets
+    outout:
+    '''
+    acc_ , acc = [] , []
+    f1_, f1 = [],[]
+    tnfpfntp,tnfpfntp_ = [],[] #confusion_matrix().ravel()
+    tp_genes = []
+    model_name, data_name = [],[]
+    nin, nout = [],[]
+    error = []
+    size = []
+    id_name = []
+    models = ['adapter','upu','lr','rf','nn','random']
+    for dt,dtn in zip(data_list,names):
+        if dt.shape[1]>2:
+            #print('type: ',dt,dtn,'shape:', dt.shape[1], dt.head())
+            #dt['y_out'].fillna(0,inplace = True)
+            y = dt['y_out'].fillna(0)
+            X = dt.drop(['y_out'], axis=1)
+            index_save = X.index
+            scaler = StandardScaler()
+            scaler.fit(X)
+            X = scaler.transform(X)
+            X = pd.DataFrame(X,index=index_save)
+            y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.3)
+            index_ = [list(X_train.index),list(X_test.index)]
+            flat_index = [item for sublist in index_ for item in sublist]
+            flat_index = np.array(flat_index)
+            #print('INDEX',len(flat_index),len(list(X_train.index)),len(list(X_test.index)))
+            e_full_ = np.where(y==1,0,0)
+            e_ = np.where(y_test==1,0,0)
+            ensemble_c = 0
+            for m in models:
+                try:
+                    scores, cm, cm_, tp_genes01, y_,y_full_ = pul(y_train, y_test, X_train, X_test,'name',m)
+                    acc.append(scores[0])
+                    acc_.append(scores[1])
+                    f1.append(scores[2])
+                    f1_.append(scores[3])
+                    tnfpfntp.append(cm)
+                    tnfpfntp_.append(cm_)
+                    tp_genes.append(flat_index[np.equal(tp_genes01,1)])
+                    model_name.append(m)
+                    data_name.append(dtn)
+                    nin.append(name_in)
+                    nout.append(name_out)
+                    error.append(False)
+                    if(m=='adapter' or m=='upu' or m=='lr' or m=='randomforest'):
+                        e_full_ = e_full_+y_full_
+                        e_ = e_+y_
+                        ensemble_c = ensemble_c+1
+                except:
+                    acc.append(np.nan)
+                    acc_.append(np.nan)
+                    f1.append(np.nan)
+                    f1_.append(np.nan)
+                    tnfpfntp.append([np.nan,np.nan,np.nan,np.nan])
+                    tnfpfntp_.append([np.nan,np.nan,np.nan,np.nan])
+                    tp_genes.append([])
+                    model_name.append(m)
+                    data_name.append(dtn)
+                    nin.append(name_in)
+                    nout.append(name_out)
+                    error.append(True)
+                    print('Error in PUL model',m,dtn)
+                size.append(X_train.shape[1])
+                id_name.append(id)
+
+            #print('test',ensemble_c,acc)
+            e_full_ = np.multiply(e_full_,1/ensemble_c)
+            e_ = np.multiply(e_,1/ensemble_c)
+            e_full_ = np.where(np.array(e_full_)>0.5,1,0)
+            e_ = np.where(np.array(e_)>0.5,1,0)
+            y_full = np.concatenate((y_train,y_test), axis = 0 )
+            acc.append(accuracy_score(y_test,e_))
+            acc_.append(accuracy_score(y_full,e_full_))
+            f1.append(f1_score(y_test,e_))
+            f1_.append(f1_score(y_full,e_full_))
+            tnfpfntp.append(confusion_matrix(y_test,e_).ravel())
+            tnfpfntp_.append(confusion_matrix(y_full,e_full_).ravel())
+            tp_genes.append([])
+            model_name.append('ensemble')
+            data_name.append(dtn)
+            nin.append(name_in)
+            nout.append(name_out)
+            error.append(False)
+            size.append(X_train.shape[1])
+            id_name.append(id)
+        else:
+            print(dtn, 'only one columns')
+    dt_exp = pd.DataFrame({'acc':acc,'acc_':acc_, 'f1':f1, 'f1_':f1_,
+                               'tnfpfntp':tnfpfntp, 'tnfpfntp_':tnfpfntp_,
+                               'tp_genes':tp_genes,'model_name':model_name , 'data_name':data_name,
+                               'nin':nin, 'nout':nout, 'error':error, 'size': size,
+                               'id':id_name})
+    return dt_exp

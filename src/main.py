@@ -8,13 +8,13 @@ import time
 import matplotlib.pyplot as plt
 
 
-#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
-path = 'C://Users//raque//Documents//GitHub//ParKCa'
+path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+#path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
 import datapreprocessing as dp
-import CEVAE as cevae
-import train as models
+#import CEVAE as cevae
+#import train as models
 import eval as eval
 import numpy.random as npr
 from os import listdir
@@ -30,7 +30,6 @@ pd.set_option('display.max_columns', 500)
 
 from scipy.stats import ttest_ind,ttest_rel
 
-APPLICATION = True #driver genes APPLICATION1
 SIMULATION = False
 testing = False
 DA = False
@@ -38,96 +37,44 @@ BART = True
 CEVAE = False
 
 
-if APPLICATION:
-    k_list = [15,30,45]
-    pathfiles = path+'\\data'
-    listfiles = [f for f in listdir(pathfiles) if isfile(join(pathfiles, f))]
-    b =100
-    if testing:
-        b = int(b/10)
-        listfiles = listfiles[15:16]
-        k = k_list[0]
-        filename = listfiles[0]
-        train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
-        name = filename.split('_')[-1].split('.')[0]
-        #coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
+'''
+Real-world application
+level 0 data: gene expression of patients with cancer
+level 0 outcome: metastasis
+'''
+#models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=True, CEVAEBOOL=False,path)
+features_bart =  pd.read_csv("results\\coef_bart.txt",sep=';')
+features_da15 = pd.read_pickle("results\\coef_15.txt")
+level1data = features_bart.merge(features_da15,  left_on='gene', right_on='genes')
 
 
-    else:
-        if DA:
-            print('DA')
-            skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
-            for k in k_list:
-                 coefk_table = pd.DataFrame(columns=['genes'])
-                 roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
-                 #test
-                 for filename in listfiles:
-                     train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
-                     if train.shape[0]>150:
-                        print(filename,': ' ,train.shape[0])
-                        #change filename
-                        name = filename.split('_')[-1].split('.')[0]
-                        if name not in skip:
-                            coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
-                            roc_table = roc_table.append(roc,ignore_index=True)
-                            coefk_table[coln] = coef
+cgc_list = fc.cgc()
+cgc_list['y_out']=1
+cgc_list = cgc_list.iloc[:,[0,-1]]
+cgc_list.rename(columns = {'Gene Symbol':'genes'}, inplace = True)
 
-                 print('--------- DONE ---------')
-                 coefk_table['genes'] = colnames
+level1data = merge(level1data, cgc)
 
-                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-                 eval.roc_plot('results//plots_realdata//roc_'+str(k)+'.txt')
+dt_exp = fc.data_running_models(data_list, names,nin,nout,False,id1)
 
-        if BART:
-            print('BART')
-            #MODEL AND PREDICTIONS MADE ON R
-            filenames=['bart_all.txt','bart_MALE.txt','bart_FEMALE.txt']
-            exp.roc_table_creation(filenames,'bart')
-            exp.roc_plot('results//plots_realdata//roc_'+'bart'+'.txt')
+def data_running_models
+
+
+'''
+Simulation
+level 0 data: Binary treatments
+level 0 outcome: Binary
+'''
 
 
 #SAVING 10 datasets
 n_units = 5000
 n_causes = 10000# 10% var
-SIMULATIONS = 10
-if SIMULATION:
-    #ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
-    vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
-    h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
-    #sim_load_vcf_to_h5(vcf_path,h5_path)
-    #S = dp.sim_load_h5_to_PCA(h5_path)
-    S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
+sim = 10
+#dp.generate_samples(sim,n_units, n_causes)
 
 
-    sim_y = []
-    sim_tc = []
-    for sim in range(SIMULATIONS):
-        G0, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, 3, sim )
-        G1, tc, y01 = dp.sim_dataset(G0,lambdas, n_causes,n_units,sim)
-        G = dp.add_colnames(G1,tc)
-        del G0,G1
-
-        #train_s = np.asmatrix(G)
-        #j, v = G.shape
-        #print(name,': ' ,train_s.shape[0])
-        G.to_pickle('data_s//snp_simulated_'+str(sim)+'.txt')
-        sim_y.append(y01)
-        sim_tc.append(tc)
-    sim_y = np.transpose(np.matrix(sim_y))
-    sim_y = pd.DataFrame(sim_y)
-    sim_y.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
-
-    sim_tc = np.transpose(np.matrix(sim_tc))
-    sim_tc = pd.DataFrame(sim_tc)
-    sim_tc.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
-
-    sim_y.to_pickle('data_s//snp_simulated_y01.txt')
-    sim_tc.to_pickle('data_s//snp_simulated_truecauses.txt')
-
-         #change filename
-    #k = 15
-    #b = 10
+'''
 if CEVAE:
     #roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
     #12:16, 14/05/2020
@@ -191,3 +138,4 @@ if CEVAE:
     #Results are bad, but I think there is hope
     #Copy others from application
     #exp.roc_plot('results//sroc_'+str(k)+'.txt')
+'''
