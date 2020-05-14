@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import warnings
 warnings.simplefilter("ignore")
+import time
+import matplotlib.pyplot as plt
+
 
 #path = 'C://Users//raoki//Documents//GitHub//ParKCa'
 path = 'C://Users//raque//Documents//GitHub//ParKCa'
@@ -12,7 +15,7 @@ sys.path.append(path+'//src')
 import datapreprocessing as dp
 import CEVAE as cevae
 import train as models
-import experiments as exp
+import eval as eval
 import numpy.random as npr
 from os import listdir
 from os.path import isfile, join
@@ -72,7 +75,7 @@ if APPLICATION:
 
                  roc_table.to_pickle('results//roc_'+str(k)+'.txt')
                  coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-                 exp.roc_plot('results//roc_'+str(k)+'.txt')
+                 eval.roc_plot('results//roc_'+str(k)+'.txt')
 
         if BART:
             print('BART')
@@ -101,21 +104,33 @@ if SIMULATION:
 
     train_s = np.asmatrix(G)
     j, v = G.shape
-    print(name,': ' ,train_s.shape[0])
+    #print(name,': ' ,train_s.shape[0])
                     #change filename
     k = 15
     b = 10
     if CEVAE:
+        start_time = time.time()
         y0, y1, y01_pred, yte, loss = cevae.model(n_causes,0,train_s,y01)
-        #y0 and y1: samples of treatment values 
-        #y01_pred and yte : predicted and observed outcome 
- 
-        
-    y01_pred_ = [1 if i >0.5 else 0 for i in y_pred]
+        print("--- %s minutes ---" % str((time.time() - start_time)/60))
+        print(len(loss))
+        fig = plt.figure(figsize=(12,10))
+        plt.plot(loss, label='Total')
+        plt.title('Variational Lower Bound')
+        plt.show()    
+        fig.savefig('results//cevae10.png')
+        #batch and epoch: 500, 100 and loss 1000, 
+        #y0 and y1: samples of treatment values
+        #y01_pred and yte : predicted and observed outcome
 
-    f1_score(yte,y01_pred_)
-    f1_score(yte,npr.binomial(1,yte.sum()/len(yte),size=len(yte)))
-    
+
+
+
+
+
+    #y01_pred_ = [1 if i >0.5 else 0 for i in y_pred]
+    #f1_score(yte,y01_pred_)
+    #f1_score(yte,npr.binomial(1,yte.sum()/len(yte),size=len(yte)))
+
     ##coef, roc, coln = models.deconfounder_PPCA_LR(train_s,G.columns,y01,name,k,10)
     #roc_table = roc_table.append(roc,ignore_index=True)
     #coefk_table[coln] = coef

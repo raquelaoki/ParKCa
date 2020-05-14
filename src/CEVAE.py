@@ -27,9 +27,9 @@ parser = ArgumentParser()
 parser.add_argument('-reps', type=int, default=1)
 parser.add_argument('-z_dim', type=int, default=20)
 parser.add_argument('-h_dim', type=int, default=64)
-parser.add_argument('-epochs', type=int, default=10 ) #change to 100
+parser.add_argument('-epochs', type=int, default=50 ) #change to 100
 parser.add_argument('-batch', type=int, default=500)
-parser.add_argument('-lr', type=float, default=0.00001)
+parser.add_argument('-lr', type=float, default=0.01)
 parser.add_argument('-decay', type=float, default=0.001)
 parser.add_argument('-print_every', type=int, default=10)
 
