@@ -130,7 +130,7 @@ if SIMULATION:
     #b = 10
 if CEVAE:
     #roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
-    
+    #12:16, 14/05/2020
     #testing
     start_time = time.time()
     train_path = 'data_s//snp_simulated_0.txt'
@@ -154,21 +154,27 @@ if CEVAE:
             output = pd.DataFrame({'at0':at0,
                                    'at1':at1,
                                    'cate':cate})
-            predictions = pd.DataFrame(np.matrix(y01_predicted))
-            testing_set = pd.DataFrame(np.matrix(y01_))
+            
+            predictions = np.stack( y01_predicted, axis=0 ).reshape(len(y01_predicted),len(y01_predicted[0]))
+            testing_set = np.stack( y01_, axis=0 ).reshape(len(y01_),len(y01_[0]))
+            predictions = pd.DataFrame(np.transpose(predictions))
+            testing_set = pd.DataFrame(np.transpose(testing_set))
             output.to_pickle('results//simulations//cevae_output.txt')
             predictions.to_pickle('results//simulations//cevae_pred.txt')
             testing_set.to_pickle('results//simulations//cevae_test.txt')
             
 
+    output = pd.DataFrame({'at0':at0,'at1':at1,'cate':cate})
+
+    predictions = np.stack( y01_predicted, axis=0 ).reshape(len(y01_predicted),len(y01_predicted[0]))
+    testing_set = np.stack( y01_, axis=0 ).reshape(len(y01_),len(y01_[0]))
+    predictions = pd.DataFrame(np.transpose(predictions))
+    testing_set = pd.DataFrame(np.transpose(testing_set))
+ 
+    output.to_pickle('results//simulations//cevae_output.txt')
+    predictions.to_pickle('results//simulations//cevae_pred.txt')
+    testing_set.to_pickle('results//simulations//cevae_test.txt')
     print("--- %s minutes ---" % str((time.time() - start_time)/60))
-    #y0 and y1: samples of treatment values
-        #roc_table = roc_table.append(roc,ignore_index=True)
-        #cate = y1[:,0].mean() - y0[:,0].mean()
-        #if t%100==0:
-         #   roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-
-
 
 
     #y01_pred_ = [1 if i >0.5 else 0 for i in y_pred]

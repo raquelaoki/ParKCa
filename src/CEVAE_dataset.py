@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 
 class DATA(object):
-    def __init__(self, ncol, data_path, y01, replications = 101): #path_data="datasets/IHDP/csv",  replications=10
+    def __init__(self, ncol, data_path, y01, replications = 10000): #path_data="datasets/IHDP/csv",  replications=10
         #self.data_s = data_path
         self.data = np.matrix(pd.read_pickle(data_path))
         self.ncol = ncol
