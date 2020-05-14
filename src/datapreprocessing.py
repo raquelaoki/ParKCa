@@ -158,16 +158,17 @@ def sim_load_h5_to_PCA(h5_path):
     np.savetxt('data_s//tgp_pca'+str(k)+'.txt', coords1, delimiter=',')
     return coords1
 
-def sim_dataset(G0,lambdas,n_causes,n_units):
+def sim_dataset(G0,lambdas,n_causes,n_units, randseed):
+    np.random.seed(randseed)
     tc_ = npr.normal(loc = 0 , scale=0.5*0.5, size=n_causes)
     #True causes
     tc = [i if i>np.quantile(tc_,0.99) else 0 for i in tc_]#truncate so only 1% are different from 0
     sigma = np.zeros(n_units)
     sigma = [1*1 if lambdas[j]==0 else sigma[j] for j in range(len(sigma))]
     sigma = [2*2 if lambdas[j]==1 else sigma[j] for j in range(len(sigma))]
-    sigma = [5*5 if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
+    sigma = [4*4 if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
     y0 = np.array(tc).reshape(1,-1).dot(np.transpose(G0))
-    y1 = 13*lambdas.reshape(1,-1)
+    y1 = 10*lambdas.reshape(1,-1)
     y2 = npr.normal(0,sigma,n_units).reshape(1,-1)
     y = y0 + y1 + y2
     p = 1/(1+np.exp(y0 + y1 + y2))
@@ -181,8 +182,6 @@ def sim_dataset(G0,lambdas,n_causes,n_units):
     y01 = np.asarray(y01)
     #568 1's
     print(sum(y01), len(y01))
-
-
     G = add_colnames(G0,tc)
     return G, tc,y01
 
@@ -230,7 +229,7 @@ def sim_genes_BN(Fs, ps, n_hapmapgenes, n_causes, n_units, D=3):
     sG = sparse.csr_matrix(G)
     return G, lambdas
 
-def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D=3):
+def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D, randseed):
     '''
     generate the simulated data
     input:
@@ -239,6 +238,7 @@ def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D=3):
         - n_units = m (columns)
         - S: PCA output n x 2
     '''
+    np.random.seed(randseed)
 
     #Fs and ps [] (not used in this version)
     #n_hapmapgenes also not used

@@ -24,12 +24,12 @@ print ('Current cuda device ', torch.cuda.current_device())
 # np.random.seed(7)
 parser = ArgumentParser()
 # Set Hyperparameters
-parser.add_argument('-reps', type=int, default=1)
+parser.add_argument('-reps', type=int, default=10)
 parser.add_argument('-z_dim', type=int, default=20)
 parser.add_argument('-h_dim', type=int, default=64)
-parser.add_argument('-epochs', type=int, default=50 ) #change to 100
+parser.add_argument('-epochs', type=int, default=3 ) #change to 100
 parser.add_argument('-batch', type=int, default=500)
-parser.add_argument('-lr', type=float, default=0.01)
+parser.add_argument('-lr', type=float, default=0.001)
 parser.add_argument('-decay', type=float, default=0.001)
 parser.add_argument('-print_every', type=int, default=10)
 
@@ -37,7 +37,7 @@ args = parser.parse_args()
 
 def model(n_causes, tcol, data_s, y01):
 
-    dataset = DATA(ncol=n_causes-1,tcol=0,data_s = data_s,y01 = y01)
+    dataset = DATA(ncol=n_causes-1,tcol=tcol,data_path = data_s,y01 = y01)
 
 
     # Loop for replications
@@ -180,19 +180,4 @@ def model(n_causes, tcol, data_s, y01):
         scaler = MinMaxScaler(feature_range=(0, 1))
         scaler.fit(y01_pred.mean.cpu().detach().numpy())
         y_pred = scaler.transform(y01_pred.mean.cpu().detach().numpy())
-        return y0, y1, y_pred, yte, np.array(loss['Total'])
-
-
-        plt.figure()
-        plt.plot(np.array(loss['Total']), label='Total')
-        plt.title('Variational Lower Bound')
-        plt.show()
-
-        #plt.figure()
-        #subidx = 1
-        #for key, value in loss.items():
-    #        plt.subplot(2, 4, subidx)
-    #        plt.plot(np.array(value), label=key)
-#            plt.title(key)
-#            subidx += 1
-#        plt.show()
+        yield (y0, y1, y_pred, yte, np.array(loss['Total']))

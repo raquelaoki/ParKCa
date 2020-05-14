@@ -28,8 +28,10 @@ np.random.seed(randseed)
 
 pd.set_option('display.max_columns', 500)
 
+from scipy.stats import ttest_ind,ttest_rel
+
 APPLICATION = False #driver genes APPLICATION1
-SIMULATION = True
+SIMULATION = False
 testing = True
 DA = False
 BART = False
@@ -85,6 +87,10 @@ if APPLICATION:
             exp.roc_plot('results//roc_'+'bart'+'.txt')
 
 
+#SAVING 10 datasets 
+n_units = 5000
+n_causes = 10000# 10% var
+SIMULATIONS = 10 
 if SIMULATION:
     #ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
     vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
@@ -92,37 +98,63 @@ if SIMULATION:
     #sim_load_vcf_to_h5(vcf_path,h5_path)
     #S = dp.sim_load_h5_to_PCA(h5_path)
     S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
-    n_units = 5000
-    n_causes = 10000# 10% var
 
+    
+    sim_y = []
+    sim_tc = []
+    for sim in range(SIMULATIONS):    
+        G0, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, 3, sim )
+        G1, tc, y01 = dp.sim_dataset(G0,lambdas, n_causes,n_units,sim)
+        G = dp.add_colnames(G1,tc)
+        del G0,G1
+    
+        #train_s = np.asmatrix(G)
+        #j, v = G.shape
+        #print(name,': ' ,train_s.shape[0])
+        G.to_pickle('data_s//snp_simulated_'+str(sim)+'.txt')
+        sim_y.append(y01)
+        sim_tc.append(tc)
+    sim_y = np.transpose(np.matrix(sim_y))
+    sim_y = pd.DataFrame(sim_y)
+    sim_y.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
+    
+    sim_tc = np.transpose(np.matrix(sim_tc))
+    sim_tc = pd.DataFrame(sim_tc)
+    sim_tc.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
+    
+    sim_y.to_pickle('data_s//snp_simulated_y01.txt')
+    sim_tc.to_pickle('data_s//snp_simulated_truecauses.txt')
 
-
-    G0, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, D=3)
-    G1, tc, y01 = dp.sim_dataset(G0,lambdas, n_causes,n_units)
-    G = dp.add_colnames(G1,tc)
-    del G0,G1
-
-    train_s = np.asmatrix(G)
-    j, v = G.shape
-    #print(name,': ' ,train_s.shape[0])
-                    #change filename
-    k = 15
-    b = 10
-    if CEVAE:
-        start_time = time.time()
-        y0, y1, y01_pred, yte, loss = cevae.model(n_causes,0,train_s,y01)
-        print("--- %s minutes ---" % str((time.time() - start_time)/60))
-        print(len(loss))
-        fig = plt.figure(figsize=(12,10))
-        plt.plot(loss, label='Total')
-        plt.title('Variational Lower Bound')
-        plt.show()    
-        fig.savefig('results//cevae10.png')
-        #batch and epoch: 500, 100 and loss 1000, 
-        #y0 and y1: samples of treatment values
+         #change filename
+    #k = 15
+    #b = 10
+if CEVAE:
+    #roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
+    
+    #testing
+    start_time = time.time()
+    train_path = 'data_s//snp_simulated_'
+    y01_path = 'data_s//snp_simulated_y01.txt'
+    y01 = np.asmatrix(pd.read_pickle(y01_path))
+    #for t in range(SIMULATIONS):
+        #CHECK INDEXS, I THINK IM DOING WRONG ASSOCIATIONS
+    t = 0 
+    for (y0, y1, y01_pred, yte, loss) in cevae.model(n_causes,t,train_path,y01):
+        print(y0.shape,y01_pred.shape,len(loss))
+    fig = plt.figure(figsize=(6,4))
+    plt.plot(loss, label='Total')
+    plt.title('Variational Lower Bound',fontsize=15)
+    plt.show()    
+    fig.savefig('results//plots_cevae//cevae_'+str(t)+'.png')
+    
+    print("--- %s minutes ---" % str((time.time() - start_time)/60))
+    #y0 and y1: samples of treatment values
         #y01_pred and yte : predicted and observed outcome
-
-
+        #roc 
+        #roc_table = roc_table.append(roc,ignore_index=True)
+        #cate = y1[:,0].mean() - y0[:,0].mean()
+        #if t%100==0:
+         #   roc_table.to_pickle('results//roc_'+str(k)+'.txt')
 
 
 
