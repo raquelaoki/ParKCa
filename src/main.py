@@ -30,12 +30,12 @@ pd.set_option('display.max_columns', 500)
 
 from scipy.stats import ttest_ind,ttest_rel
 
-APPLICATION = False #driver genes APPLICATION1
+APPLICATION = True #driver genes APPLICATION1
 SIMULATION = False
-testing = True
+testing = False
 DA = False
-BART = False
-CEVAE = True
+BART = True
+CEVAE = False
 
 
 if APPLICATION:
@@ -77,20 +77,20 @@ if APPLICATION:
 
                  roc_table.to_pickle('results//roc_'+str(k)+'.txt')
                  coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-                 eval.roc_plot('results//roc_'+str(k)+'.txt')
+                 eval.roc_plot('results//plots_realdata//roc_'+str(k)+'.txt')
 
         if BART:
             print('BART')
             #MODEL AND PREDICTIONS MADE ON R
-            filenames=['bart_all.txt','bart_all.txt','bart_all.txt']
-            exp.roc_table_creation(filenames)
-            exp.roc_plot('results//roc_'+'bart'+'.txt')
+            filenames=['bart_all.txt','bart_MALE.txt','bart_FEMALE.txt']
+            exp.roc_table_creation(filenames,'bart')
+            exp.roc_plot('results//plots_realdata//roc_'+'bart'+'.txt')
 
 
-#SAVING 10 datasets 
+#SAVING 10 datasets
 n_units = 5000
 n_causes = 10000# 10% var
-SIMULATIONS = 10 
+SIMULATIONS = 10
 if SIMULATION:
     #ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
     vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
@@ -99,15 +99,15 @@ if SIMULATION:
     #S = dp.sim_load_h5_to_PCA(h5_path)
     S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
 
-    
+
     sim_y = []
     sim_tc = []
-    for sim in range(SIMULATIONS):    
+    for sim in range(SIMULATIONS):
         G0, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, 3, sim )
         G1, tc, y01 = dp.sim_dataset(G0,lambdas, n_causes,n_units,sim)
         G = dp.add_colnames(G1,tc)
         del G0,G1
-    
+
         #train_s = np.asmatrix(G)
         #j, v = G.shape
         #print(name,': ' ,train_s.shape[0])
@@ -117,11 +117,11 @@ if SIMULATION:
     sim_y = np.transpose(np.matrix(sim_y))
     sim_y = pd.DataFrame(sim_y)
     sim_y.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
-    
+
     sim_tc = np.transpose(np.matrix(sim_tc))
     sim_tc = pd.DataFrame(sim_tc)
     sim_tc.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
-    
+
     sim_y.to_pickle('data_s//snp_simulated_y01.txt')
     sim_tc.to_pickle('data_s//snp_simulated_truecauses.txt')
 
@@ -130,7 +130,7 @@ if SIMULATION:
     #b = 10
 if CEVAE:
     #roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
-    
+
     #testing
     start_time = time.time()
     train_path = 'data_s//snp_simulated_0.txt'
@@ -142,15 +142,15 @@ if CEVAE:
     at1 = []
     cate = []
     y01_predicted =[]
-    y01_ = []  
-    
+    y01_ = []
+
     for (y0, y1, y10, y01_pred, yte) in cevae.model(n_causes,train_path,y01):
         at0.append(y0)
         at1.append(y1)
         cate.append(y10)
         y01_predicted.append(y01_pred)
         y01_.append(yte)
-        if len(at0)%100 == 0: 
+        if len(at0)%100 == 0:
             output = pd.DataFrame({'at0':at0,
                                    'at1':at1,
                                    'cate':cate})
@@ -159,7 +159,7 @@ if CEVAE:
             output.to_pickle('results//simulations//cevae_output.txt')
             predictions.to_pickle('results//simulations//cevae_pred.txt')
             testing_set.to_pickle('results//simulations//cevae_test.txt')
-            
+
 
     print("--- %s minutes ---" % str((time.time() - start_time)/60))
     #y0 and y1: samples of treatment values
