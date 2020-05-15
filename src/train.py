@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import warnings
 warnings.simplefilter("ignore")
+import eval as eval
+import datapreprocessing as dp
+#import CEVAE as cevae
 
 from os import listdir
 from os.path import isfile, join
@@ -24,17 +27,25 @@ from sklearn import calibration
 
 from scipy.stats import gamma
 from scipy import sparse, stats
-
 import statsmodels.discrete.discrete_model as sm
 
 #DA
-from tensorflow.keras import optimizers
-import tensorflow as tf #.compat.v2
-import tensorflow_probability as tfp
-from tensorflow_probability import distributions as tfd
-tf.enable_eager_execution()
 import functools
 
+#Meta-leaners packages
+#https://github.com/aldro61/pu-learning
+from extra.puLearning.puAdapter import PUAdapter
+#https://github.com/t-sakai-kure/pywsl
+from pywsl.pul import pumil_mr, pu_mr
+from pywsl.utils.syndata import gen_twonorm_pumil
+from pywsl.utils.comcalc import bin_clf_err
+
+import statsmodels.discrete.discrete_model as sm
+from sklearn.ensemble import RandomForestClassifier
+#NN
+
+
+#Learners
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     '''
     input:
@@ -103,6 +114,12 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
 
 def fm_PPCA(train,latent_dim, flag_pred):
     #Reference: https://github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_PCA.ipynb
+    from tensorflow.keras import optimizers
+    import tensorflow as tf #.compat.v2
+    import tensorflow_probability as tfp
+    from tensorflow_probability import distributions as tfd
+    tf.enable_eager_execution()
+
     num_datapoints, data_dim = train.shape
     x_train = tf.convert_to_tensor(np.transpose(train),dtype = tf.float32)
 
@@ -263,3 +280,214 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     #extra = pd.DataFrame({'genes':colnames,colname1+'_icl': coef_low,colname1+'_icu':coef_up })
 
     return coef, roc
+
+def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
+    '''
+    Function to run the application.
+    INPUT:
+    bool variables
+    path: path for level 0 data
+    OUTPUT:
+    plots, coefficients and roc data (to_pickle format)
+
+    NOTE: This code does not run the BART, it only reads the results.
+    BART model was run using R
+    '''
+    if APPLICATION:
+        k_list = [15,30]
+        pathfiles = path+'\\data'
+        listfiles = [f for f in listdir(pathfiles) if isfile(join(pathfiles, f))]
+        b =100
+
+        if DA:
+            print('DA')
+            skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
+            for k in k_list:
+                 coefk_table = pd.DataFrame(columns=['genes'])
+                 roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
+                 #test
+                 for filename in listfiles:
+                     train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
+                     if train.shape[0]>150:
+                        print(filename,': ' ,train.shape[0])
+                        #change filename
+                        name = filename.split('_')[-1].split('.')[0]
+                        if name not in skip:
+                            coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
+                            roc_table = roc_table.append(roc,ignore_index=True)
+                            coefk_table[coln] = coef
+
+                 print('--------- DONE ---------')
+                 coefk_table['genes'] = colnames
+
+                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
+                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
+                 eval.roc_plot('results//roc_'+str(k)+'.txt')
+
+        if BART:
+            print('BART')
+            #MODEL AND PREDICTIONS MADE ON R
+            filenames=['results//bart_all.txt','results//bart_MALE.txt','results//bart_FEMALE.txt']
+            eval.roc_table_creation(filenames,'bart')
+            eval.roc_plot('results//roc_'+'bart'+'.txt')
+
+        if BART and DA:
+            filenames=['results//roc_bart.txt','results//roc_15.txt']
+            eval.roc_plot_all(filenames)
+
+#Meta-learner
+def classification_models(y,y_,X,X_,name_model):
+    """
+    Input:
+        X,y,X_test, y_test: dataset to train the model
+    Return:
+        cm: confusion matrix for the testing set
+        cm_: confusion matrix for the full dataset
+        y_all_: prediction for the full dataset
+    """
+
+    warnings.filterwarnings("ignore")
+    if name_model == 'nn':
+        #IMPLEMENT
+        print('a')
+    elif name_model == 'adapter':
+        #keep prob
+        #it was c=0.5
+        estimator = SVC(C=0.3, kernel='rbf',gamma='scale',probability=True)
+        model = PUAdapter(estimator, hold_out_ratio=0.1)
+        X = np.matrix(X)
+        y0 = np.array(y)
+        y0[np.where(y0 == 0)[0]] = -1
+        model.fit(X, y0)
+
+    elif name_model == 'upu':
+        '''
+        pul: nnpu (Non-negative PU Learning), pu_skc(PU Set Kernel Classifier),
+        pnu_mr:PNU classification and PNU-AUC optimization (the one tht works: also use negative data)
+        nnpu is more complicated (neural nets, other methos seems to be easier)
+        try https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/pu_skc/demo_pu_skc.py
+        and https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
+         '''
+        print('upu', X.shape[1])
+        #https://github.com/t-sakai-kure/pywsl
+        prior =.5 #change for the proportion of 1 and 0
+        param_grid = {'prior': [prior],
+                          'lam': np.logspace(-3, 1, 5), #what are these values
+                          'basis': ['lm']}
+        lambda_list = np.logspace(-3, 1, 5)
+        #upu (Unbiased PU learning)
+        #https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
+        model = GridSearchCV(estimator=pu_mr.PU_SL(),
+                               param_grid=param_grid, cv=10, n_jobs=-1)
+        X = np.matrix(X)
+        y = np.array(y)
+        model.fit(X, y)
+
+    elif name_model == 'lr':
+        print('lr',X.shape[1])
+        X = np.matrix(X)
+        y = np.array(y)
+        model = sm.Logit(y,X).fit_regularized(method='l1')
+
+    elif name_model=='rf':
+        print('rd',X.shape[1])
+        #md = max(np.floor(X.shape[1]/3),6)
+        w = len(y)/y.sum()
+        sample_weight = np.array([w if i == 1 else 1 for i in y])
+        model = RandomForestClassifier(max_depth=12, random_state=0)
+        model.fit(X, y,sample_weight = sample_weight)
+
+    else:
+        print('random',X.shape[1])
+
+
+    X_full = np.concatenate((X,X_), axis = 0 )
+    y_full = np.concatenate((y,y_), axis = 0)
+
+    if name_model=='random':
+         p = y.sum()+y_.sum()
+         p_full = p/(len(y)+len(y_))
+         y_pred = np.random.binomial(n=1,p=y_.sum()/len(y_),size =X_.shape[0])
+         ypred = np.random.binomial(n=1,p=p_full,size =X_full.shape[0])
+    else:
+        y_pred = model.predict(X_)
+        ypred = model.predict(X_full)
+
+    if name_model =='uajfiaoispu':
+        print(y_pred)
+        print('\nTesting set: \n',confusion_matrix(y_,y_pred))
+        print('\nFull set: \n',confusion_matrix(y_full,ypred))
+        print('\nPrecision ',precision(1,confusion_matrix(y_,y_pred)))
+        print('Recall',recall(1,confusion_matrix(y_,y_pred)))
+
+    if name_model == 'lr':
+        y_pred = [0 if i<0.5 else 1 for i in y_pred]
+        ypred = [0 if i<0.5 else 1 for i in ypred]
+
+    #Some models pred -1 instead of 0
+    y_pred = np.where(y_pred==-1,0,y_pred)
+    ypred = np.where(ypred==-1,0,ypred)
+
+    #fpr, tpr, _ = roc_curve(y_,y_pred)
+    pr = precision(1,confusion_matrix(y_,y_pred))
+    re = recall(1,confusion_matrix(y_,y_pred))
+    auc = roc_auc_score(y_,y_pred)
+    f1 = f1_score(y_full,ypred)
+    f1_ = f1_score(y_,y_pred)
+
+    #tp_genes = np.multiply(y_full, y_full_)
+    roc = {'metalearners': name_model,'precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_}
+    warnings.filterwarnings("default")
+    return roc, ypred, y_pred
+
+def precision(label, confusion_matrix):
+    col = confusion_matrix[:, label]
+    return confusion_matrix[label, label] / col.sum()
+
+def recall(label, confusion_matrix):
+    row = confusion_matrix[label, :]
+    return confusion_matrix[label, label] / row.sum()
+
+def meta_learner(data1, models):
+    '''
+    input: level 1 data
+    outout:
+    '''
+    roc_table = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_'])
+    tp_genes = []
+
+    #split data trainint and testing
+    y = data1['y_out']
+    X = data1.drop(['y_out'], axis=1)
+    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+
+    #starting ensemble
+    e_full = np.zeros(len(y))
+    e_pred = np.zeros(len(y_test))
+    e = 0
+
+    for m in models:
+        roc, yfull, y_pred = classification_models(y_train, y_test, X_train, X_test,m)
+        #tp_genes.append(flat_index[np.equal(tp_genes01,1)])
+        roc_table = roc_table.append(roc,ignore_index=True)
+        #ensemble
+        if(m=='adapter' or m=='upu' or m=='lr' or m=='rf' or m=='nn'):
+            e_full += yfull
+            e_pred += y_pred
+            e += 1
+
+    #finishing ensemble
+    e_full = np.divide(e_full,e)
+    e_pred = np.divide(e_pred,e)
+    e_full= [1 if i>0.5 else 0 for i in e_full]
+    e_pred= [1 if i>0.5 else 0 for i in e_pred]
+
+    #fpr, tpr, _ = roc_curve(y_test,e_pred)
+    pr = precision(1,confusion_matrix(y_test,e_pred))
+    re = recall(1,confusion_matrix(y_test,e_pred))
+    auc = roc_auc_score(y_test,e_pred)
+    f1 = f1_score(np.hstack([y_test,y_train]),e_full)
+    f1_ = f1_score(y_test,e_pred)
+    roc = {'metalearners': 'ensemble','precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_}
+    roc_table = roc_table.append(roc,ignore_index=True)
+    return roc_table

@@ -107,6 +107,39 @@ def data_prep(filename):
 
     return train, j, v, y01,  abr, colnames
 
+def cgc(path):
+    '''
+    Known Causes/Driver Genes
+    Input: none
+    Load a csv file previously downloaded
+    output: Return the csv file
+    '''
+    dgenes = pd.read_csv(path,sep=',')
+    dgenes['Tumour Types(Somatic)'] = dgenes['Tumour Types(Somatic)'].fillna(dgenes['Tumour Types(Germline)'])
+    dgenes['y_out']=1
+    dgenes = dgenes.iloc[:,[0,-1]]
+    dgenes.rename(columns = {'Gene Symbol':'genes'}, inplace = True)
+    return dgenes
+
+def data_norm(data1):
+    data1o = np.zeros(data1.shape)
+    data1o[:,0] = data1.iloc[:,0]
+
+    for i in range(1,data1.shape[1]):
+        nonzero = []
+        for j in range(data1.shape[0]):
+            if data1.iloc[j,i]!=0:
+                nonzero.append(data1.iloc[j,i])
+        for j in range(data1.shape[0]):
+            if data1.iloc[j,i]!= 0:
+                data1o[j,i] = (data1.iloc[j,i] - np.mean(nonzero))/np.sqrt(np.var(nonzero))
+            if i==5 and j == 1:
+                print(data1o[j,i])
+                print(data1.iloc[j,i], np.mean(nonzero),np.sqrt(np.var(nonzero)))
+    data1o = pd.DataFrame(data1o)
+    data1o.index = data1.index
+    data1o.columns = data1.columns
+    return data1o
 
 #simulation
 def sim_load_vcf_to_h5(vcf_path,h5_path):
@@ -201,36 +234,9 @@ def add_colnames(data, truecauses):
     data.columns = colnames
     return data
 
-
-#Code bellow adapted from Yixin Wang
-def sim_genes_BN(Fs, ps, n_hapmapgenes, n_causes, n_units, D=3):
-    '''
-    inputs:
-        - Fs: matrix (format?)
-        - ps: matrix (format?)
-        - n_hapmapgenes: possible causes
-        - n_causes: int/col
-        - n_units:  size/row
-    output:
-        - G:
-        - lambdas:
-    '''
-
-    idx = npr.randint(n_hapmapgenes, size = n_causes)
-    p = ps[idx]
-    F = Fs[idx]
-    Gammamat = np.zeros((n_causes, D))
-    for i in range(D):
-        Gammamat[:,i] = npr.beta((1-F)*p/F, (1-F)*(1-p)/F)
-    S = npr.multinomial(1, (60/210, 60/210, 90/210), size = n_units)
-    F = S.dot(Gammamat.T)
-    G = npr.binomial(2, F)
-    lambdas = KMeans(n_clusters=3, random_state=123).fit(S).labels_
-    sG = sparse.csr_matrix(G)
-    return G, lambdas
-
 def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D, randseed):
     '''
+    #From adapted from Deconfounder's authors
     generate the simulated data
     input:
         - Fs, ps, n_hapmapgenes: not used here
@@ -260,32 +266,48 @@ def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D, randseed):
     sG = sparse.csr_matrix(G)
     return G, lambdas
 
-def sim_genes_PSD(Fs, ps, n_hapmapgenes, n_causes, n_units, D=3):
-    alpha = 0.5
-    idx = npr.randint(n_hapmapgenes, size = n_causes)
-    p = ps[idx]
-    F = Fs[idx]
-    Gammamat = np.zeros((n_causes, D))
-    for i in range(D):
-        Gammamat[:,i] = npr.beta((1-F)*p/F, (1-F)*(1-p)/F)
-    S = npr.dirichlet((alpha, alpha, alpha), size = n_units)
-    F = S.dot(Gammamat.T)
-    G = npr.binomial(2, F)
-    lambdas = KMeans(n_clusters=3, random_state=123).fit(S).labels_
-    sG = sparse.csr_matrix(G)
-    return G, lambdas
+def generate_samples(SIMULATIONS,n_units,n_causes):
+    '''
+    Input:
+    SIMULATIONS: number of datasets to be produced
+    n_units, n_causes: dimentions
 
-def sim_genes_SP(Fs, ps, n_hapmapgenes, n_causes, n_units, D=3):
-    a = 0.1
-    # simulate genes
-    Gammamat = np.zeros((n_causes, 3))
-    Gammamat[:,0] = 0.45*npr.uniform(size=n_causes)
-    Gammamat[:,1] = 0.45*npr.uniform(size=n_causes)
-    Gammamat[:,2] = 0.05*np.ones(n_causes)
-    S = npr.beta(a, a, size=(n_units, 2))
-    S = np.column_stack((S, np.ones(n_units)))
-    F = S.dot(Gammamat.T)
-    G = npr.binomial(2, F)
-    lambdas = KMeans(n_clusters=3, random_state=123).fit(S).labels_
-    sG = sparse.coo_matrix(G)
-    return G, lambdas
+    Output (pickle format):
+    snp_simulated datasets
+    y: output simulated and truecases for each datset are together in a single matrix
+
+    Note: There are options to load the data from vcf format and run the pca
+    Due running time, we save the files and load from the pca.txt file
+    '''
+    #ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
+    vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
+    h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
+    #sim_load_vcf_to_h5(vcf_path,h5_path)
+    #S = dp.sim_load_h5_to_PCA(h5_path)
+    S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
+
+
+    sim_y = []
+    sim_tc = []
+    for sim in range(SIMULATIONS):
+        G0, lambdas = sim_genes_TGP([], [], 0 , n_causes, n_units, S, 3, sim )
+        G1, tc, y01 = sim_dataset(G0,lambdas, n_causes,n_units,sim)
+        G = add_colnames(G1,tc)
+        del G0,G1
+
+        #train_s = np.asmatrix(G)
+        #j, v = G.shape
+        #print(name,': ' ,train_s.shape[0])
+        G.to_pickle('data_s//snp_simulated_'+str(sim)+'.txt')
+        sim_y.append(y01)
+        sim_tc.append(tc)
+    sim_y = np.transpose(np.matrix(sim_y))
+    sim_y = pd.DataFrame(sim_y)
+    sim_y.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
+
+    sim_tc = np.transpose(np.matrix(sim_tc))
+    sim_tc = pd.DataFrame(sim_tc)
+    sim_tc.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
+
+    sim_y.to_pickle('data_s//snp_simulated_y01.txt')
+    sim_tc.to_pickle('data_s//snp_simulated_truecauses.txt')

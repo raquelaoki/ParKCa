@@ -8,14 +8,14 @@ import time
 import matplotlib.pyplot as plt
 
 
-#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
-path = 'C://Users//raque//Documents//GitHub//ParKCa'
+path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+#path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
-#import datapreprocessing as dp
-import CEVAE as cevae
-#import train as models
-#import eval as eval
+import datapreprocessing as dp
+#import CEVAE as cevae
+import train as models
+import eval as eval
 import numpy.random as npr
 from os import listdir
 from os.path import isfile, join
@@ -30,55 +30,55 @@ pd.set_option('display.max_columns', 500)
 
 from scipy.stats import ttest_ind,ttest_rel
 
-APPLICATION = False #driver genes APPLICATION1
 SIMULATION = False
-testing = True
+testing = False
 DA = False
-BART = False
-CEVAE = True
+BART = True
+CEVAE = False
 
 
-#SAVING 10 datasets 
+'''
+Real-world application
+level 0 data: gene expression of patients with cancer
+level 0 outcome: metastasis
+'''
+#models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=True, CEVAEBOOL=False,path)
+
+features_bart =  pd.read_csv("results\\coef_bart.txt",sep=';')
+features_da15 = pd.read_pickle("results\\coef_15.txt")
+level1data = features_bart.merge(features_da15,  left_on='gene', right_on='genes').drop(['genes'],1)
+cgc_list = dp.cgc('extra\\cancer_gene_census.csv')
+level1data = cgc_list.merge(level1data, left_on='genes',right_on='gene',how='right').drop(['genes'],1)
+level1data['y_out'].fillna(0,inplace=True)
+level1data.set_index('gene', inplace = True, drop = True)
+
+
+data1 = dp.data_norm(level1data)
+data1.head()
+
+#DIVERSITY
+
+experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
+
+
+
+
+
+'''
+Simulation
+level 0 data: Binary treatments
+level 0 outcome: Binary
+'''
+
+
+#SAVING 10 datasets
 n_units = 5000
 n_causes = 10000# 10% var
-SIMULATIONS = 10 
-if SIMULATION:
-    #ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
-    vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
-    h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
-    #sim_load_vcf_to_h5(vcf_path,h5_path)
-    #S = dp.sim_load_h5_to_PCA(h5_path)
-    S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
+sim = 10
+#dp.generate_samples(sim,n_units, n_causes)
 
-    
-    sim_y = []
-    sim_tc = []
-    for sim in range(SIMULATIONS):    
-        G0, lambdas = dp.sim_genes_TGP([], [], 0 , n_causes, n_units, S, 3, sim )
-        G1, tc, y01 = dp.sim_dataset(G0,lambdas, n_causes,n_units,sim)
-        G = dp.add_colnames(G1,tc)
-        del G0,G1
-    
-        #train_s = np.asmatrix(G)
-        #j, v = G.shape
-        #print(name,': ' ,train_s.shape[0])
-        G.to_pickle('data_s//snp_simulated_'+str(sim)+'.txt')
-        sim_y.append(y01)
-        sim_tc.append(tc)
-    sim_y = np.transpose(np.matrix(sim_y))
-    sim_y = pd.DataFrame(sim_y)
-    sim_y.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
-    
-    sim_tc = np.transpose(np.matrix(sim_tc))
-    sim_tc = pd.DataFrame(sim_tc)
-    sim_tc.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
-    
-    sim_y.to_pickle('data_s//snp_simulated_y01.txt')
-    sim_tc.to_pickle('data_s//snp_simulated_truecauses.txt')
 
-         #change filename
-    #k = 15
-    #b = 10
+'''
 if CEVAE:
     #roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
     #12:16, 14/05/2020
@@ -93,19 +93,19 @@ if CEVAE:
     at1 = []
     cate = []
     y01_predicted =[]
-    y01_ = []  
-    
+    y01_ = []
+
     for (y0, y1, y10, y01_pred, yte) in cevae.model(n_causes,train_path,y01):
         at0.append(y0)
         at1.append(y1)
         cate.append(y10)
         y01_predicted.append(y01_pred)
         y01_.append(yte)
-        if len(at0)%200 == 0: 
+        if len(at0)%100 == 0:
             output = pd.DataFrame({'at0':at0,
                                    'at1':at1,
                                    'cate':cate})
-            
+
             predictions = np.stack( y01_predicted, axis=0 ).reshape(len(y01_predicted),len(y01_predicted[0]))
             testing_set = np.stack( y01_, axis=0 ).reshape(len(y01_),len(y01_[0]))
             predictions = pd.DataFrame(np.transpose(predictions))
@@ -113,7 +113,7 @@ if CEVAE:
             output.to_pickle('results//simulations//cevae_output.txt')
             predictions.to_pickle('results//simulations//cevae_pred.txt')
             testing_set.to_pickle('results//simulations//cevae_test.txt')
-            
+
 
     output = pd.DataFrame({'at0':at0,'at1':at1,'cate':cate})
 
@@ -121,7 +121,7 @@ if CEVAE:
     testing_set = np.stack( y01_, axis=0 ).reshape(len(y01_),len(y01_[0]))
     predictions = pd.DataFrame(np.transpose(predictions))
     testing_set = pd.DataFrame(np.transpose(testing_set))
- 
+
     output.to_pickle('results//simulations//cevae_output.txt')
     predictions.to_pickle('results//simulations//cevae_pred.txt')
     testing_set.to_pickle('results//simulations//cevae_test.txt')
@@ -142,3 +142,4 @@ if CEVAE:
     #Results are bad, but I think there is hope
     #Copy others from application
     #exp.roc_plot('results//sroc_'+str(k)+'.txt')
+'''

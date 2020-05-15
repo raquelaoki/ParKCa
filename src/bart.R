@@ -21,6 +21,7 @@ options(java.parameters = "-Xmx5g")
 library(bartMachine)
 library(factoextra)
 
+set.seed(99999)
 
 #https://cran.r-project.org/web/packages/bartMachine/vignettes/bartMachine.pdf
 #recommended package BayesTrees is not functional anymore
@@ -35,7 +36,7 @@ filenames = filenames[16:18]
 for(i in 1:length(filenames)){
 
 cat('\n')
-cat(filenames)
+cat(filenames[i])
 data = read.table(paste('data/',filenames[i],sep=''), sep = ';', header = T)
 data <- data[sample(nrow(data),replace=FALSE),] #shuffle data
 
@@ -78,7 +79,7 @@ if(sum( name == check) != 0){
   #BART model
   bart_machine = bartMachine(data.frame(X,Xa), y, num_trees = 50, num_burn_in = 500, num_iterations_after_burn_in = 1400,serialize = TRUE)
   summary(bart_machine)
-  saveRDS(bart_machine, name)
+  #saveRDS(bart_machine, name)
 }
 
 #making predictions
@@ -88,6 +89,7 @@ names(predictions) = c('obs','pred')
 write.table(predictions,gsub('.rds','.txt',name), sep = ';', row.names = FALSE)
 
 
+
 if(RUN_CATE){
   #making the interventional data, one for each gene
   pred_ =  mean(predict(bart_machine, data.frame(X_,Xa_), type='prob'))
@@ -95,14 +97,14 @@ if(RUN_CATE){
 
   if(i==1){
     coef_ = data.frame(gene = names(X))
-    coef_$current = c(999)
+    coef_$current = coef$bart_MALE
   }else{
     coef_$current = c(999)
   }
 
   #Simulations
   s = 60
-  for(v in 1:dim(X_)[2]){
+  for(v in 7001:dim(X_)[2]){
     X_i = X_
     X_i[,v] = 0
 
@@ -115,7 +117,7 @@ if(RUN_CATE){
     }
     dif = pred_ - pred_i
     dif0 = mean(dif)/(var(dif)/s)^0.5
-    if(dif0>qnorm(0.025) & dif0<qnorm(0.975)) coef$cate[v] =  mean(dif) else coef$cate[v] =  0
+    if(dif0>qnorm(0.025) & dif0<qnorm(0.975)) coef_$current[v] =  mean(dif) else coef_$current[v] =  0
 
     #Saving
     if(v%%200==0){
@@ -123,15 +125,18 @@ if(RUN_CATE){
       cat(' of ')
       cat(dim(X_)[2])
       cat('\n')
-      coef_$current = coef$cate
-      write.table(coef_,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
+      coef$cate = coef_$current
+      write.table(coef,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
       saveRDS(coef_, coef_name)
     }
 
   }
-  names(coef_)[dim(coef_)[2]] = coef_name
+  
+  coef[,dim(coef)[2]]=coef_$current
+  names(coef)[dim(coef)[2]] = coef_name
   coef_$current = c(999)
-  write.table(coef_,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
+  
+  write.table(coef,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
   saveRDS(coef_, coef_name)
 }
 

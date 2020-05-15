@@ -7,11 +7,13 @@ import numpy as np
 sns.set()
 from ast import literal_eval
 from sklearn.metrics import roc_curve,roc_auc_score,confusion_matrix,f1_score
+sns.palplot(sns.color_palette("colorblind", 10))
 
 
-#read from roc_table
+
 def roc_table_creation(filenames,modelname):
     '''
+    Read from roc_table.txt
     From predicted values, create roc_table
     "obs";"pred"
     '''
@@ -45,12 +47,13 @@ def roc_plot(filename):
     roc_table1 = pd.read_pickle(filename)
     roc_table1.set_index('learners', inplace=True)
 
-    fig = plt.figure(figsize=(12,10))
+    fig = plt.figure(figsize=(8,6))
 
     for i in roc_table1.index:
+        label = i.replace('dappcalr','da')
         plt.plot(roc_table1.loc[i]['fpr'],
                  roc_table1.loc[i]['tpr'],
-                 label="{}, AUC={:.3f}".format(i, roc_table1.loc[i]['auc']))
+                 label="{}, AUC={:.3f}".format(label, roc_table1.loc[i]['auc']))
 
     plt.plot([0,1], [0,1], color='orange', linestyle='--')
 
@@ -61,10 +64,10 @@ def roc_plot(filename):
     plt.ylabel("True Positive Rate", fontsize=15)
 
     plt.title('ROC Curve Analysis', fontweight='bold', fontsize=15)
-    plt.legend(prop={'size':13}, loc='lower right', ncol=2)
+    plt.legend(prop={'size':12}, loc='lower right', ncol=1)
 
     plt.show()
-    fig.savefig('results//plot_'+filename.split('//')[-1].split('.')[0]+'.png')
+    fig.savefig('results//plots_realdata//plot_'+filename.split('//')[-1].split('.')[0]+'.png')
 
 def roc_plot_all(filenames):
     '''
@@ -81,12 +84,15 @@ def roc_plot_all(filenames):
 
     roc_table1.set_index('learners', inplace=True)
 
-    fig = plt.figure(figsize=(12,10))
+    fig = plt.figure(figsize=(8,6))
+
+    roc_table1.index
 
     for i in roc_table1.index:
+        label = i.replace('dappcalr','da')
         plt.plot(roc_table1.loc[i]['fpr'],
                  roc_table1.loc[i]['tpr'],
-                 label="{}, AUC={:.3f}".format(i, roc_table1.loc[i]['auc']))
+                 label="{}, AUC={:.3f}".format(label, roc_table1.loc[i]['auc']))
 
     plt.plot([0,1], [0,1], color='orange', linestyle='--')
 
@@ -97,7 +103,7 @@ def roc_plot_all(filenames):
     plt.ylabel("True Positive Rate", fontsize=15)
 
     plt.title('ROC Curve Analysis', fontweight='bold', fontsize=15)
-    plt.legend(prop={'size':13}, loc='lower right', ncol=2)
+    plt.legend(prop={'size':13}, loc='lower right', ncol=1)
 
     plt.show()
-    fig.savefig('results//plot_'+filename.split('//')[-1].split('.')[0]+'.png')
+    fig.savefig('results//plots_realdata//plot_roc_all_realdata.png')
