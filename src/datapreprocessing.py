@@ -122,12 +122,24 @@ def cgc(path):
     return dgenes
 
 def data_norm(data1):
+    data1o = np.zeros(data1.shape)
+    data1o[:,0] = data1.iloc[:,0]
+
     for i in range(1,data1.shape[1]):
-        nonzero = [j if j!=0 for j in data1[:,i]]
+        nonzero = []
         for j in range(data1.shape[0]):
-            if data1[j,i]!= 0:
-                data1[j,i] = (data1[j,i]-np.mean(nonzero))/np.sqrt(np.var(nonzero))
-    return data1
+            if data1.iloc[j,i]!=0:
+                nonzero.append(data1.iloc[j,i])
+        for j in range(data1.shape[0]):
+            if data1.iloc[j,i]!= 0:
+                data1o[j,i] = (data1.iloc[j,i] - np.mean(nonzero))/np.sqrt(np.var(nonzero))
+            if i==5 and j == 1:
+                print(data1o[j,i])
+                print(data1.iloc[j,i], np.mean(nonzero),np.sqrt(np.var(nonzero)))
+    data1o = pd.DataFrame(data1o)
+    data1o.index = data1.index
+    data1o.columns = data1.columns
+    return data1o
 
 #simulation
 def sim_load_vcf_to_h5(vcf_path,h5_path):
