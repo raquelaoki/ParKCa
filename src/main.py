@@ -53,9 +53,13 @@ level1data['y_out'].fillna(0,inplace=True)
 level1data.set_index('gene', inplace = True, drop = True)
 
 
-level1data = level1data[0:7000,]
+data1 = dp.data_norm(level1data)
+data1.head()
+
 #DIVERSITY
-exp = models.meta_learner(level1data, ['lr','rf','random'])
+
+experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
+
 
 
 

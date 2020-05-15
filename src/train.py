@@ -352,13 +352,13 @@ def classification_models(y,y_,X,X_,name_model):
         print('a')
     elif name_model == 'adapter':
         #keep prob
-        print('Meta-learner: adapter')
         #it was c=0.5
         estimator = SVC(C=0.3, kernel='rbf',gamma='scale',probability=True)
-        model = PUAdapter(estimator, hold_out_ratio=0.3)
+        model = PUAdapter(estimator, hold_out_ratio=0.1)
         X = np.matrix(X)
-        y = np.array(y)
-        model.fit(X, y)
+        y0 = np.array(y)
+        y0[np.where(y0 == 0)[0]] = -1
+        model.fit(X, y0)
 
     elif name_model == 'upu':
         '''
@@ -391,9 +391,11 @@ def classification_models(y,y_,X,X_,name_model):
 
     elif name_model=='rf':
         print('rd',X.shape[1])
-        md = max(np.floor(X.shape[1]/3),6)
-        model = RandomForestClassifier(max_depth=md, random_state=0)
-        model.fit(X, y)
+        #md = max(np.floor(X.shape[1]/3),6)
+        w = len(y)/y.sum()
+        sample_weight = np.array([w if i == 1 else 1 for i in y])
+        model = RandomForestClassifier(max_depth=12, random_state=0)
+        model.fit(X, y,sample_weight = sample_weight)
 
     else:
         print('random',X.shape[1])
@@ -401,7 +403,7 @@ def classification_models(y,y_,X,X_,name_model):
 
     X_full = np.concatenate((X,X_), axis = 0 )
     y_full = np.concatenate((y,y_), axis = 0)
-    
+
     if name_model=='random':
          p = y.sum()+y_.sum()
          p_full = p/(len(y)+len(y_))
@@ -410,29 +412,48 @@ def classification_models(y,y_,X,X_,name_model):
     else:
         y_pred = model.predict(X_)
         ypred = model.predict(X_full)
-    
+
+    if name_model =='uajfiaoispu':
+        print(y_pred)
+        print('\nTesting set: \n',confusion_matrix(y_,y_pred))
+        print('\nFull set: \n',confusion_matrix(y_full,ypred))
+        print('\nPrecision ',precision(1,confusion_matrix(y_,y_pred)))
+        print('Recall',recall(1,confusion_matrix(y_,y_pred)))
+
     if name_model == 'lr':
         y_pred = [0 if i<0.5 else 1 for i in y_pred]
         ypred = [0 if i<0.5 else 1 for i in ypred]
 
     #Some models pred -1 instead of 0
     y_pred = np.where(y_pred==-1,0,y_pred)
-    fpr, tpr, _ = roc_curve(y_,y_pred)
+    ypred = np.where(ypred==-1,0,ypred)
+
+    #fpr, tpr, _ = roc_curve(y_,y_pred)
+    pr = precision(1,confusion_matrix(y_,y_pred))
+    re = recall(1,confusion_matrix(y_,y_pred))
     auc = roc_auc_score(y_,y_pred)
     f1 = f1_score(y_full,ypred)
     f1_ = f1_score(y_,y_pred)
 
     #tp_genes = np.multiply(y_full, y_full_)
-    roc = {'metalearners': name_model,'fpr':fpr ,'tpr':tpr,'auc':auc,'f1':f1,'f1_':f1_}
+    roc = {'metalearners': name_model,'precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_}
     warnings.filterwarnings("default")
     return roc, ypred, y_pred
+
+def precision(label, confusion_matrix):
+    col = confusion_matrix[:, label]
+    return confusion_matrix[label, label] / col.sum()
+
+def recall(label, confusion_matrix):
+    row = confusion_matrix[label, :]
+    return confusion_matrix[label, label] / row.sum()
 
 def meta_learner(data1, models):
     '''
     input: level 1 data
     outout:
     '''
-    roc_table = pd.DataFrame(columns=['metalearners', 'fpr','tpr','auc','f1','f1_'])
+    roc_table = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_'])
     tp_genes = []
 
     #split data trainint and testing
@@ -460,11 +481,13 @@ def meta_learner(data1, models):
     e_pred = np.divide(e_pred,e)
     e_full= [1 if i>0.5 else 0 for i in e_full]
     e_pred= [1 if i>0.5 else 0 for i in e_pred]
-    
-    fpr, tpr, _ = roc_curve(y_test,e_pred)
+
+    #fpr, tpr, _ = roc_curve(y_test,e_pred)
+    pr = precision(1,confusion_matrix(y_test,e_pred))
+    re = recall(1,confusion_matrix(y_test,e_pred))
     auc = roc_auc_score(y_test,e_pred)
     f1 = f1_score(np.hstack([y_test,y_train]),e_full)
     f1_ = f1_score(y_test,e_pred)
-    roc = {'metalearners': 'ensemble','fpr':fpr ,'tpr':tpr,'auc':auc,'f1':f1,'f1_':f1_}
+    roc = {'metalearners': 'ensemble','precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_}
     roc_table = roc_table.append(roc,ignore_index=True)
     return roc_table
