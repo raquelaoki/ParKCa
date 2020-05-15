@@ -14,7 +14,7 @@ path = 'C://Users//raoki//Documents//GitHub//ParKCa'
 sys.path.append(path+'//src')
 import datapreprocessing as dp
 #import CEVAE as cevae
-#import train as models
+import train as models
 import eval as eval
 import numpy.random as npr
 from os import listdir
@@ -43,21 +43,21 @@ level 0 data: gene expression of patients with cancer
 level 0 outcome: metastasis
 '''
 #models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=True, CEVAEBOOL=False,path)
+
 features_bart =  pd.read_csv("results\\coef_bart.txt",sep=';')
 features_da15 = pd.read_pickle("results\\coef_15.txt")
-level1data = features_bart.merge(features_da15,  left_on='gene', right_on='genes')
+level1data = features_bart.merge(features_da15,  left_on='gene', right_on='genes').drop(['genes'],1)
+cgc_list = dp.cgc('extra\\cancer_gene_census.csv')
+level1data = cgc_list.merge(level1data, left_on='genes',right_on='gene',how='right').drop(['genes'],1)
+level1data['y_out'].fillna(0,inplace=True)
+level1data.set_index('gene', inplace = True, drop = True)
 
 
-cgc_list = fc.cgc()
-cgc_list['y_out']=1
-cgc_list = cgc_list.iloc[:,[0,-1]]
-cgc_list.rename(columns = {'Gene Symbol':'genes'}, inplace = True)
+level1data = level1data[0:7000,]
+#DIVERSITY
+exp = models.meta_learner(level1data, ['lr','rf','random'])
 
-level1data = merge(level1data, cgc)
 
-dt_exp = fc.data_running_models(data_list, names,nin,nout,False,id1)
-
-def data_running_models
 
 
 '''

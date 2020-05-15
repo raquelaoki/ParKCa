@@ -10,9 +10,10 @@ from sklearn.metrics import roc_curve,roc_auc_score,confusion_matrix,f1_score
 sns.palplot(sns.color_palette("colorblind", 10))
 
 
-#read from roc_table
+
 def roc_table_creation(filenames,modelname):
     '''
+    Read from roc_table.txt
     From predicted values, create roc_table
     "obs";"pred"
     '''

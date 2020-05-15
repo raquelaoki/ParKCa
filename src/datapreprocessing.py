@@ -114,11 +114,20 @@ def cgc(path):
     Load a csv file previously downloaded
     output: Return the csv file
     '''
-
     dgenes = pd.read_csv(path,sep=',')
     dgenes['Tumour Types(Somatic)'] = dgenes['Tumour Types(Somatic)'].fillna(dgenes['Tumour Types(Germline)'])
+    dgenes['y_out']=1
+    dgenes = dgenes.iloc[:,[0,-1]]
+    dgenes.rename(columns = {'Gene Symbol':'genes'}, inplace = True)
     return dgenes
 
+def data_norm(data1):
+    for i in range(1,data1.shape[1]):
+        nonzero = [j if j!=0 for j in data1[:,i]]
+        for j in range(data1.shape[0]):
+            if data1[j,i]!= 0:
+                data1[j,i] = (data1[j,i]-np.mean(nonzero))/np.sqrt(np.var(nonzero))
+    return data1
 
 #simulation
 def sim_load_vcf_to_h5(vcf_path,h5_path):
