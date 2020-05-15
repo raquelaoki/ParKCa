@@ -24,7 +24,7 @@ print ('Current cuda device ', torch.cuda.current_device())
 # np.random.seed(7)
 parser = ArgumentParser()
 # Set Hyperparameters
-parser.add_argument('-reps', type=int, default=10000)
+parser.add_argument('-reps', type=int, default=20)
 parser.add_argument('-z_dim', type=int, default=20)
 parser.add_argument('-h_dim', type=int, default=64)
 parser.add_argument('-epochs', type=int, default=3 ) #change to 100
@@ -42,7 +42,7 @@ def model(n_causes,  data_path, y01):
 
     # Loop for replications
     for i, (train, valid, test, contfeats, binfeats) in enumerate(dataset.get_train_valid_test()):
-
+        tcol = i
         #i, (train, valid, test, contfeats, binfeats) = dataset.get_train_valid_test()
         print('\nReplication %i/%i' % (i + 1, args.reps))
         # read out data
@@ -171,8 +171,6 @@ def model(n_causes,  data_path, y01):
                                        torch.tensor(tte).cuda())
                     y0, y1 = y0 * ys + ym, y1 * ys + ym
 
-
-
             y0, y1 = get_y0_y1(p_y_zt_dist, q_y_xt_dist, q_z_tyx_dist, torch.tensor(xte).cuda(),
                                torch.tensor(tte).cuda())
             y0, y1 = y0 * ys + ym, y1 * ys + ym
@@ -182,14 +180,19 @@ def model(n_causes,  data_path, y01):
             scaler.fit(y01_pred.mean.cpu().detach().numpy())
             y_pred = scaler.transform(y01_pred.mean.cpu().detach().numpy())
 
-            fig = plt.figure(figsize=(6,4))
-            plt.plot(loss['Total'], label='Total')
-            plt.title('Variational Lower Bound',fontsize=15)
-            plt.show()
-            fig.savefig('results//plots_cevae//cevae_sim0_t'+str(i)+'.png')
+
+            if np.random.binomial(1,0.01)==1:
+                fig = plt.figure(figsize=(6,4))
+                plt.plot(loss['Total'], label='Total')
+                plt.title('Variational Lower Bound',fontsize=15)
+                plt.show()
+                fig.savefig('results//plots_cevae//cevae_sim0_t'+str(tcol)+'.png')
 
             yield (y0[:,0].mean(), y1[:,0].mean(),(y1[:,0]-y0[:,0]).mean() ,y_pred,  np.squeeze(np.asarray(yte)))
+
         except ValueError:
-            y_pred = np.empty(len(yte))
-            y_pred[:]=np.Nan
+            y_pred = np.zeros(len(yte))
+            y_pred[:]=np.nan
+            y_pred = y_pred.reshape(-1,1)
+            print('ERROR:',tcol)
             yield (0.0, 0.0,0.0,y_pred, np.squeeze(np.asarray(yte)))

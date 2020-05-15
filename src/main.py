@@ -12,10 +12,10 @@ import matplotlib.pyplot as plt
 path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
-import datapreprocessing as dp
+#import datapreprocessing as dp
 import CEVAE as cevae
-import train as models
-import eval as eval
+#import train as models
+#import eval as eval
 import numpy.random as npr
 from os import listdir
 from os.path import isfile, join
@@ -36,55 +36,6 @@ testing = True
 DA = False
 BART = False
 CEVAE = True
-
-
-if APPLICATION:
-    k_list = [15,30,45]
-    pathfiles = path+'\\data'
-    listfiles = [f for f in listdir(pathfiles) if isfile(join(pathfiles, f))]
-    b =100
-    if testing:
-        b = int(b/10)
-        listfiles = listfiles[15:16]
-        k = k_list[0]
-        filename = listfiles[0]
-        train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
-        name = filename.split('_')[-1].split('.')[0]
-        #coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
-
-
-    else:
-        if DA:
-            print('DA')
-            skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
-            for k in k_list:
-                 coefk_table = pd.DataFrame(columns=['genes'])
-                 roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
-                 #test
-                 for filename in listfiles:
-                     train, j, v, y01, abr, colnames = dp.data_prep('data\\'+filename)
-                     if train.shape[0]>150:
-                        print(filename,': ' ,train.shape[0])
-                        #change filename
-                        name = filename.split('_')[-1].split('.')[0]
-                        if name not in skip:
-                            coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
-                            roc_table = roc_table.append(roc,ignore_index=True)
-                            coefk_table[coln] = coef
-
-                 print('--------- DONE ---------')
-                 coefk_table['genes'] = colnames
-
-                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-                 eval.roc_plot('results//roc_'+str(k)+'.txt')
-
-        if BART:
-            print('BART')
-            #MODEL AND PREDICTIONS MADE ON R
-            filenames=['bart_all.txt','bart_all.txt','bart_all.txt']
-            exp.roc_table_creation(filenames)
-            exp.roc_plot('results//roc_'+'bart'+'.txt')
 
 
 #SAVING 10 datasets 
@@ -150,7 +101,7 @@ if CEVAE:
         cate.append(y10)
         y01_predicted.append(y01_pred)
         y01_.append(yte)
-        if len(at0)%100 == 0: 
+        if len(at0)%200 == 0: 
             output = pd.DataFrame({'at0':at0,
                                    'at1':at1,
                                    'cate':cate})
