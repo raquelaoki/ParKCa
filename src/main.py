@@ -59,7 +59,15 @@ data1.head()
 
 #DIVERSITY
 
-experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
+#experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
+
+y = data1['y_out']
+X = data1.drop(['y_out'], axis=1)
+from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
+y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+
+
+models.nn_classifier(y_train, y_test, X_train, X_test, 100,64,0.001)
 
 
 '''
