@@ -34,7 +34,7 @@ import functools
 
 #Meta-leaners packages
 #https://github.com/aldro61/pu-learning
-from extra.puLearning.puAdapter import PUAdapter
+from puLearning.puAdapter import PUAdapter
 #https://github.com/t-sakai-kure/pywsl
 from pywsl.pul import pumil_mr, pu_mr
 from pywsl.utils.syndata import gen_twonorm_pumil
@@ -261,6 +261,7 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
         predp = modelcv.predict_proba(X_test)
         predp1 = [i[1] for i in predp]
         print('F1:',f1_score(y_test,pred),sum(pred),sum(y_test))
+        print('Confusion Matrix', confusion_matrix(y_test,pred))
         fpr, tpr, _ = roc_curve(y_test, predp1)
         auc = roc_auc_score(y_test, predp1)
         roc = {'learners': name,

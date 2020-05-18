@@ -1,0 +1,17 @@
+TODO:
+install anaconda
+conda create --name parkca python=3.7
+conda activate parkca
+
+conda install -c anaconda pandas
+conda install -c anaconda numpy
+conda install -c anaconda scikit-learn
+conda install -c conda-forge matplotlib
+conda install -c anaconda seaborn
+conda install -c anaconda statsmodels
+conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+
+check GPUS
+check version
+check files
+remember to time it

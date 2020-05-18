@@ -8,10 +8,11 @@ import time
 import matplotlib.pyplot as plt
 
 
-path = 'C://Users//raoki//Documents//GitHub//ParKCa'
-#path = 'C://Users//raque//Documents//GitHub//ParKCa'
+#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
+sys.path.append(path+'//extra')
 import datapreprocessing as dp
 #import CEVAE as cevae
 import train as models
@@ -61,9 +62,6 @@ data1.head()
 experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
 
 
-
-
-
 '''
 Simulation
 level 0 data: Binary treatments
@@ -76,6 +74,12 @@ n_units = 5000
 n_causes = 10000# 10% var
 sim = 10
 #dp.generate_samples(sim,n_units, n_causes)
+
+#CEVAE CODE ON NOTEBOOK
+sim1_cevae_out = dp.join_simulation('results\\simulations\\cevae_output_sim1_',['a','b','c'])
+#models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=True, CEVAEBOOL=False,path)
+
+
 
 
 '''

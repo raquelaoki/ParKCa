@@ -12,7 +12,7 @@ from CEVAE_networks import p_x_z, p_t_z, p_y_zt, q_t_x, q_y_xt, q_z_tyx
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
-
+import torch.nn as nn
 import torch
 from torch.distributions import normal
 from torch import optim
@@ -24,7 +24,7 @@ print ('Current cuda device ', torch.cuda.current_device())
 # np.random.seed(7)
 parser = ArgumentParser()
 # Set Hyperparameters
-parser.add_argument('-reps', type=int, default=20)
+parser.add_argument('-reps', type=int, default=10000)
 parser.add_argument('-z_dim', type=int, default=20)
 parser.add_argument('-h_dim', type=int, default=64)
 parser.add_argument('-epochs', type=int, default=3 ) #change to 100

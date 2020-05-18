@@ -311,3 +311,47 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
 
     sim_y.to_pickle('data_s//snp_simulated_y01.txt')
     sim_tc.to_pickle('data_s//snp_simulated_truecauses.txt')
+
+
+#join simulation 
+def join_simulation(path, files):
+    #path = 'results\\simulations\\cevae_output_sim0_'
+    sim = pd.read_pickle(path+files[0]+'.txt')
+    if len(files) >= 1: 
+        for i in range(len(files)-1):
+            #sim0 = sim0.iloc[0:3599,:]
+            part = pd.read_pickle(path+files[i+1]+'.txt')
+            sim = pd.concat([sim,part],axis = 0)    
+       
+    sim.reset_index(inplace = True,drop = True)
+    sim['cate'].fillna(0, inplace = True)
+    return sim
+
+sim1 = join_simulation('results\\simulations\\cevae_output_sim1_',['a','b','c'])
+
+
+pathtc = 'data_s\\snp_simulated_truecauses.txt'    
+pathy01 = 'data_s\\snp_simulated_y01.txt'
+tc  = pd.read_pickle(pathtc)
+y01 = pd.read_pickle(pathy01)
+
+tc_sim1 = tc['sim_1']
+y01_sim1 = y01['sim_1']
+#roc_table1.set_index('learners', inplace=True)
+
+train = pd.read_pickle('C:\\Users\\raque\\Documents\\GitHub\\ParKCa\\data_s\\snp_simulated_1.txt')
+coef, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,'test',10,10)
+
+#roc_table = roc_table.append(roc,ignore_index=True)
+#coefk_table[coln] = coef
+
+
+tr = [0,0]
+trc = [0,0]
+for i in range(len(coef)):
+    if tc_sim1[i] != 0: 
+        tr[1] = tr[1]+coef[i]
+        trc[1] = trc[1] + 1
+    else: 
+        tr[0]= tr[0] + coef[i]
+        trc[0] = trc[0]+1
