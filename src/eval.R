@@ -141,13 +141,20 @@ if(RUN_CGC_comparison){
     geom_point(size=2)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
     scale_x_continuous('Precision',limits=c(-0.09,1.05))+
-    scale_colour_manual(values = c("#999999", "#56B4E9","#E69F00" )) + # ,,purple
-    guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
+    scale_colour_manual(values = c("#999999", "#56B4E9","#E69F00" )) +
+    scale_fill_manual(values = c("#999999", "#56B4E9","#E69F00"))+
+    guides(size=FALSE,fill = FALSE, color=guide_legend(override.aes=list(linetype=0)))+
     labs(color='',shape='',caption = 'b.')+
+    geom_label_repel(aes(x=precision,y=recall,size=0.04,fill=name,label=method),
+                     box.padding = unit(0.4, "lines"),
+                     fontface='bold',color='white',segment.color = 'grey50')+
     theme(legend.position = c(0.8,0.9),
           legend.background= element_rect(fill="white",colour ="white"),
           legend.text = element_text(size=9),
-          legend.key.size = unit(0.5,'cm'))
+          legend.key.size = unit(0.5,'cm'))+
+   
+    
+    
   
   
   g3<- ggplot(g2data,aes(method,F1,fill=name))+geom_bar(stat='identity')+
@@ -185,25 +192,6 @@ pr1<- ggplot(dt,aes(x=p,y=r,color=model_name,shape=model_name))+
         legend.key.size = unit(0.5,'cm'),
         plot.caption = element_text(size=10))
 
-#top points
-dt1 = subset(dt1, !is.na(model_name))
-dt1$f1_ = round(dt1$f1_,2)
-pr2<- ggplot(dt1,aes(x=p_,y=r_,color=model_name,shape=model_name))+
-  geom_point()+ theme_minimal() +
-  scale_y_continuous('Recall',limits=c(-0.09,1.05))+
-  scale_x_continuous('Precision',limits = c(-0.09,1.05))+
-  scale_size_continuous(range = c(2,5))+
-  scale_shape_manual(values = c(23, 21, 24,8,12,22)) +
-  scale_color_manual(values = c("#00AFBB", "#DB7093", "#FC4E07",'#B0C4DE','#E7B800','#3cb371'))+#'#9370db'
-  guides(size=FALSE,shape=FALSE,color=FALSE,fill=FALSE)+
-  labs(caption = 'f. Full set')+
-  theme(plot.caption = element_text(size=10))+
-  geom_label_repel(aes(x=p_,y=r_,label=f1_,fill=model_name),
-                   box.padding = unit(0.4, "lines"),size=3,
-                   fontface='bold',color='white',segment.color = 'grey50') +
-  scale_fill_manual(values = c("#00AFBB", "#DB7093", "#FC4E07",'#B0C4DE','#E7B800','#3cb371'))
-
-grid.arrange(g0,g1,pr1,g2,g3, pr2, ncol=3)
 
 
 baselines = read.table('~\\Documents\\GitHub\\project\\results\\cgc_baselines.txt',
