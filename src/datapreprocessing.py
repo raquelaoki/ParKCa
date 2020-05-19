@@ -11,6 +11,9 @@ from scipy import sparse
 from scipy.special import expit
 import h5py
 import sys
+from scipy import stats
+import random as r
+
 import allel #http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
 
 def load_GE(filename1, filename2):
@@ -193,28 +196,30 @@ def sim_load_h5_to_PCA(h5_path):
 
 def sim_dataset(G0,lambdas,n_causes,n_units, randseed):
     np.random.seed(randseed)
-    tc_ = npr.normal(loc = 0 , scale=0.5*0.5, size=n_causes)
+    tc_ = npr.normal(loc = 0 , scale=0.5*0.5, size=int(n_causes*0.1))
+    tc = np.hstack((np.repeat(0.0,n_causes-int(n_causes*0.1)),tc_))
+    r.shuffle(tc)   
     #True causes
-    tc = [i if i>np.quantile(tc_,0.99) else 0 for i in tc_]#truncate so only 1% are different from 0
+    
+    tau =  stats.invgamma(3,1).rvs(3, random_state = 99)
     sigma = np.zeros(n_units)
-    sigma = [1*1 if lambdas[j]==0 else sigma[j] for j in range(len(sigma))]
-    sigma = [2*2 if lambdas[j]==1 else sigma[j] for j in range(len(sigma))]
-    sigma = [4*4 if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
+    sigma = [tau[0] if lambdas[j]==0 else sigma[j] for j in range(len(sigma))]
+    sigma = [tau[1] if lambdas[j]==1 else sigma[j] for j in range(len(sigma))]
+    sigma = [tau[2] if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
     y0 = np.array(tc).reshape(1,-1).dot(np.transpose(G0))
-    y1 = 10*lambdas.reshape(1,-1)
-    y2 = npr.normal(0,sigma,n_units).reshape(1,-1)
+    l1 = lambdas.reshape(1,-1)
+    y1 = (np.sqrt(np.var(y0))/np.sqrt(0.4))*(np.sqrt(0.4)/np.sqrt(np.var(l1)))*l1  
+    e = npr.normal(0,sigma,n_units).reshape(1,-1)
+    y2 =  (np.sqrt(np.var(y0))/np.sqrt(0.4))*(np.sqrt(0.2)/np.sqrt(np.var(e)))*e
     y = y0 + y1 + y2
     p = 1/(1+np.exp(y0 + y1 + y2))
-    print(np.var(y),np.var(y0),np.var(y1),np.var(y2))
-    print('This should be 10%: ', np.var(y0)/np.var(y-y0))
-    print('This should be 20%: ', np.var(y1)/np.var(y-y1))
-    print('This should be 70%: ', np.var(y2)/np.var(y-y2))
+    
     #del y0, y1, y2,y
     y01 = np.zeros(len(p[0]))
     y01 = [npr.binomial(1,p[0][i],1)[0] for i in range(len(p[0]))]
     y01 = np.asarray(y01)
     #568 1's
-    print(sum(y01), len(y01))
+    print('Outcome:',sum(y01),' of ' ,len(y01))
     G = add_colnames(G0,tc)
     return G, tc,y01
 
@@ -253,8 +258,8 @@ def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D, randseed):
     #S = expit(pca.fit_transform(hapmap_gene_clean))
     S = expit(S)
     Gammamat = np.zeros((n_causes, 3))
-    Gammamat[:,0] = 0.45*npr.uniform(size=n_causes)
-    Gammamat[:,1] = 0.45*npr.uniform(size=n_causes)
+    Gammamat[:,0] = 0.2*npr.uniform(size=n_causes) #0.45
+    Gammamat[:,1] = 0.2*npr.uniform(size=n_causes) #0.45
     Gammamat[:,2] = 0.05*np.ones(n_causes)
     S = np.column_stack((S[npr.choice(S.shape[0],size=n_units,replace=True),], \
         np.ones(n_units)))
@@ -285,8 +290,8 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
     #sim_load_vcf_to_h5(vcf_path,h5_path)
     #S = dp.sim_load_h5_to_PCA(h5_path)
     S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
-
-
+    
+    
     sim_y = []
     sim_tc = []
     for sim in range(SIMULATIONS):
@@ -298,7 +303,7 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
         #train_s = np.asmatrix(G)
         #j, v = G.shape
         #print(name,': ' ,train_s.shape[0])
-        G.to_pickle('data_s//snp_simulated_'+str(sim)+'.txt')
+        G.to_pickle('data_s//snp_simulated1_'+str(sim)+'.txt')
         sim_y.append(y01)
         sim_tc.append(tc)
     sim_y = np.transpose(np.matrix(sim_y))
@@ -309,5 +314,21 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
     sim_tc = pd.DataFrame(sim_tc)
     sim_tc.columns = ['sim_'+str(sim) for sim in range(SIMULATIONS)]
 
-    sim_y.to_pickle('data_s//snp_simulated_y01.txt')
-    sim_tc.to_pickle('data_s//snp_simulated_truecauses.txt')
+    sim_y.to_pickle('data_s//snp_simulated1_y01.txt')
+    sim_tc.to_pickle('data_s//snp_simulated1_truecauses.txt')
+
+
+#join simulation 
+def join_simulation(path, files):
+    #path = 'results\\simulations\\cevae_output_sim0_'
+    sim = pd.read_pickle(path+files[0]+'.txt')
+    if len(files) >= 1: 
+        for i in range(len(files)-1):
+            #sim0 = sim0.iloc[0:3599,:]
+            part = pd.read_pickle(path+files[i+1]+'.txt')
+            sim = pd.concat([sim,part],axis = 0)    
+       
+    sim.reset_index(inplace = True,drop = True)
+    sim['cate'].fillna(0, inplace = True)
+    return sim
+
