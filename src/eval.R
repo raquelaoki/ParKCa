@@ -19,6 +19,7 @@ require(plotROC)
 require(gridExtra)
 library("openxlsx")
 
+setwd("~/GitHub/ParKCa/results")
 
 
 if(CREATE_CGC_BASELINES){
@@ -104,29 +105,25 @@ if(CREATE_CGC_BASELINES){
 
 }
 
-setwd("~/GitHub/ParKCa/results")
 if(RUN_CGC_comparison){
   baselines = read.table('cgc_baselines.txt',header = TRUE, sep=';')
   experime1 = read.table('eval_metalevel1.txt', header = TRUE, sep = ';')
   experime0 = read.table('eval_metalevel0.txt', header = TRUE, sep = ';')
-  names(experime1)[2] = 
+  names(experime1)[2] = names(experime0)[2] = names(baselines)[1]
   
   g1data = rbind(experime0[,c(2,3,4,7)],experime1[,c(2,3,4,7)])
   g1data$name = c(rep('level 0 learner',dim(experime0)[1]), rep('meta-learner',dim(experime1)[1]))
-  g1data$name[g1data$metalearners=='random']='random'
+  g1data$name[g1data$method=='random']='random'
   
   
   g1 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
-    geom_point()+theme_minimal() +
+    geom_point(size=2)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
     scale_x_continuous('Precision',limits=c(-0.09,1.05))+
-    scale_colour_manual(values = c("#FC4E07", "#3cb371","#9370db" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
-    #scale_shape_manual(name = "",
-    #                   labels = c("Level 0 Learners", "Meta-Learner", "Random"),
-    #                   values = c(15,16,17))+
+    scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
     guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
     labs(color='',shape='',caption = 'a.')+
-    theme(legend.position = c(0.8,0.75),
+    theme(legend.position = c(0.8,0.9),
           legend.background= element_rect(fill="white",colour ="white"),
           legend.text = element_text(size=9),
           legend.key.size = unit(0.5,'cm'))
@@ -134,8 +131,36 @@ if(RUN_CGC_comparison){
 
   
   g2data = rbind(baselines[,c(1,4,5, 6)],experime1[,c(2,3,4,7)])
-  g2data$name = c(rep('level 0 learner',dim(experime0)[1]), rep('meta-learner',dim(experime1)[1]))
-  g2data$name[g2data$metalearners=='random']='random'  
+  g2data$name = c(rep('baselines',dim(baselines)[1]), rep('meta-learners',dim(experime1)[1]))
+  g2data$name[g2data$method=='random']='random'  
+  g2data$F1 = round(g2data$f1_,2)
+  g2data = g2data[order(g2data$F1,decreasing=TRUE),]
+  g2data <- within(g2data,method<-factor(method,levels=g2data$method))
+  
+  g2 <- ggplot(g2data,aes(x=precision ,y=recall,color=name,shape=name))+
+    geom_point(size=2)+theme_minimal() +
+    scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
+    scale_x_continuous('Precision',limits=c(-0.09,1.05))+
+    scale_colour_manual(values = c("#999999", "#56B4E9","#E69F00" )) + # ,,purple
+    guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
+    labs(color='',shape='',caption = 'b.')+
+    theme(legend.position = c(0.8,0.9),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=9),
+          legend.key.size = unit(0.5,'cm'))
+  
+  
+  g3<- ggplot(g2data,aes(method,F1,fill=name))+geom_bar(stat='identity')+
+    geom_text(aes(label=F1), hjust=1.1, color="white", size=3.5)+
+    theme_minimal()+labs(fill='')+
+    theme(legend.position = c(0.8, 0.9),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    xlab('')+ylab('F1-score')+coord_flip()+
+    labs(caption = 'c.')
+    
+  grid.arrange(g1,g2,g3, ncol=3)
   
 }
 
