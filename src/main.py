@@ -67,7 +67,8 @@ from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedK
 y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
 
 
-models.nn_classifier(y_train, y_test, X_train, X_test, 100,64,0.001)
+#models.nn_classifier(y_train, y_test, X_train, X_test, 100,64,0.001)
+
 
 
 '''
@@ -81,12 +82,40 @@ level 0 outcome: Binary
 n_units = 5000
 n_causes = 10000# 10% var
 sim = 10
+
 #dp.generate_samples(sim,n_units, n_causes)
 
-#CEVAE CODE ON NOTEBOOK
-sim1_cevae_out = dp.join_simulation('results\\simulations\\cevae_output_sim1_',['a','b','c'])
-#models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=True, CEVAEBOOL=False,path)
 
+#CEVAE CODE ON NOTEBOOK - CHANGE NAME
+#sim1_cevae_out = dp.join_simulation('results\\simulations\\cevae_output_sim1_',['a','b','c'])
+#sim1 = join_simulation('results\\simulations\\cevae_output_sim1_',['a','b','c'])
+
+#DA
+pathtc = 'data_s\\snp_simulated1_truecauses.txt'    
+pathy01 = 'data_s\\snp_simulated1_y01.txt'
+tc  = pd.read_pickle(pathtc)
+y01 = pd.read_pickle(pathy01)
+
+tc_sim1 = tc['sim_0']
+tc_sim1_bin = [1 if i != 0 else 0 for i in tc_sim1]
+y01_sim1 = y01['sim_0']
+#roc_table1.set_index('learners', inplace=True)
+
+train = pd.read_pickle('C:\\Users\\raque\\Documents\\GitHub\\ParKCa\\data_s\\snp_simulated1_0.txt')
+coef, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,'test',10,10)
+
+#tc01 = [1 if i!= 0 else 0 for i in tc_sim1]
+#co01 = [1 if i!= 0 else 0 for i in coef]
+#confusion_matrix(tc01,co01)
+#f1_score(tc01,co01)
+
+
+#LOAD CEVAE RESULTS
+dp.join_simulation()
+
+#There is potential
+data = pd.DataFrame({'cevae':sim1['cate'],'coef':coef,'y_out':tc_sim1_bin})
+models.meta_learner(data,['rf','lr','random','upu'])
 
 
 
