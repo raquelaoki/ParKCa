@@ -544,20 +544,23 @@ def nn_classifier(y_train, y_test, X_train, X_test, EPOCHS, BATCH_SIZE, LEARNING
         def __init__(self):
             super(binaryClassification, self).__init__()
             # Number of input features is 12.
-            self.layer_1 = nn.Linear(8, 44) 
-            self.layer_2 = nn.Linear(44, 1)
-            #self.layer_out = nn.Linear(16, 1) 
+            self.layer_1 = nn.Linear(8, 264) 
+            self.layer_2 = nn.Linear(264, 64)
+            self.layer_out = nn.Linear(64, 1) 
             
             self.relu = nn.ReLU()
             self.sigmoid = nn.Sigmoid()
-            self.dropout = nn.Dropout(p=0.2)
-            self.batchnorm1 = nn.BatchNorm1d(128)
+            self.dropout = nn.Dropout(p=0.1)
+            self.batchnorm1 = nn.BatchNorm1d(264)
+            self.batchnorm2 = nn.BatchNorm1d(64)
             
         def forward(self, inputs):
             x = self.relu(self.layer_1(inputs))
             x = self.batchnorm1(x)
             x = self.dropout(x)
-            x = self.sigmoid(self.layer_2(x))
+            x = self.relu(self.layer_2(x))
+            x = self.batchnorm2(x)
+            x = self.sigmoid(self.layer_out(x))
             #x = self.layer_out(x)
             
             return x

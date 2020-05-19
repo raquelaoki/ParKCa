@@ -69,6 +69,8 @@ def roc_plot(filename):
     plt.show()
     fig.savefig('results//plots_realdata//plot_'+filename.split('//')[-1].split('.')[0]+'.png')
 
+
+
 def roc_plot_all(filenames):
     '''
     From filenama with roc table with tp,tn, acc and others, fit the plot
@@ -107,3 +109,52 @@ def roc_plot_all(filenames):
 
     plt.show()
     fig.savefig('results//plots_realdata//plot_roc_all_realdata.png')
+
+def precision(label, confusion_matrix):
+    col = confusion_matrix[:, label]
+    return confusion_matrix[label, label] / col.sum()
+
+def recall(label, confusion_matrix):
+    row = confusion_matrix[label, :]
+    return confusion_matrix[label, label] / row.sum()
+
+
+def first_level_asmeta(colb,colda, data1):
+    #Learners   
+    y = data1['y_out']
+    X = data1.drop(['y_out'], axis=1)
+    from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
+    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+    
+    #BART
+    #col = ['bart_all',  'bart_FEMALE',  'bart_MALE' ]
+    for i in colb: 
+        X_train[i] = np.abs(X_train[i])
+        q = X_train[i].quantile(0.9)
+        X_train[i] = [1 if j>q else 0 for j in X_train[i]]
+        X_test[i] = [1 if j>q else 0 for j in X_test[i]]
+    
+    
+    #DA
+    #col = ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE']
+    for i in colda: 
+        X_train[i] = [1 if j!=0 else 0 for j in X_train[i]]
+        X_test[i] = [1 if j!=0 else 0 for j in X_test[i]]
+        
+    roc_table = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_'])
+    for i in X_train.columns:            
+        pr = precision(1,confusion_matrix(y_test,X_test[i]))
+        re = recall(1,confusion_matrix(y_test,X_test[i]))
+        auc = roc_auc_score(y_test,X_test[i])        
+        f1_ = f1_score(y_test,X_test[i])
+        
+        y_full = np.hstack([X_test[i],X_train[i]])
+        f1 = f1_score(np.hstack([y_test,y_train]),y_full)
+
+        roc = {'metalearners': i,'precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_}
+        roc_table = roc_table.append(roc,ignore_index=True)
+        
+    return roc_table
+
+
+    

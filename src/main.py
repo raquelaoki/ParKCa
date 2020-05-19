@@ -59,15 +59,18 @@ data1.head()
 
 #DIVERSITY
 
-#experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
+#Metalearners
+experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
+experiments2 = eval.first_level_asmeta(['bart_all',  'bart_FEMALE',  'bart_MALE' ],
+                        ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE'],
+                        data1)
 
-y = data1['y_out']
-X = data1.drop(['y_out'], axis=1)
-from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
-y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
 
+experiments1.to_csv('results\\eval_metalevel1.txt', sep=';')
+experiments2.to_csv('results\\eval_metalevel0.txt', sep=';')
 
-models.nn_classifier(y_train, y_test, X_train, X_test, 100,64,0.001)
+#more layers and nodes improved
+#models.nn_classifier(y_train, y_test, X_train, X_test, 100,64,0.001)
 
 
 '''

@@ -19,193 +19,7 @@ require(plotROC)
 require(gridExtra)
 library("openxlsx")
 
-if(RUN_F1_PRECISION_RECALL_SCORE){
-  setwd("~/GitHub/project/results")
 
-  dt = read.table("experiments2.txt", header =T, sep = ';')[,-7]
-  old = c('adapter','lr','OneClassSVM','random','randomforest','upu','ensemble')
-  new = c('Adapter-PU', 'Logistic Regression','1-SVM','Random','RF','UPU','Ensemble')
-  dt$model_name = as.character(dt$model_name)
-  for(i in 1:length(old)){
-    dt$model_name[dt$model_name==old[i]]=new[i]
-  }
-  dt = subset(dt, model_name!='1-SVM')
-  table(dt$model_name)
-
-  dt$ninnout = as.character(dt$nin)
-  dt$ninnout[dt$nin=='[all]' & dt$nout=='[]']='Complete Data Only'
-  dt$ninnout[dt$nin=='[FEMALE, MALE]' & dt$nout=='[]']='Gender Data Only'
-  dt$ninnout[dt$nin=='[]' & dt$nout=='[all, FEMALE, MALE]']='Cancer Type Data Only'
-  dt$ninnout[dt$nin=='[all, FEMALE, MALE]' & dt$nout=='[]']='Complete and Gender Data'
-  dt$ninnout[dt$nin=='[all]' & dt$nout=='[FEMALE, MALE]']='Complete and Cancer Type Data'
-  dt$ninnout[dt$nin=='[FEMALE, MALE]' & dt$nout=='[all]']='Gender and Cancer Type Data'
-  dt$ninnout[dt$nin=='[]' & dt$nout=='[]']='Complete, Gender and Cancer Type Data'
-
-  dt = subset(dt, !is.na(acc))
-  dt$tnfpfntp = gsub('[','',as.character(dt$tnfpfntp), fixed = TRUE)
-  dt$tnfpfntp = gsub(']','',as.character(dt$tnfpfntp),fixed = TRUE)
-  dt$tnfpfntp_ = gsub('[','',as.character(dt$tnfpfntp_),fixed = TRUE)
-  dt$tnfpfntp_ = gsub(']','',as.character(dt$tnfpfntp_),fixed = TRUE)
-
-  aux = strsplit(dt$tnfpfntp,' ', fixed = TRUE)
-  aux_ = strsplit(dt$tnfpfntp_,' ', fixed = TRUE)
-
-
-  dt$p = ''; dt$p_ = ''
-  dt$r = ''; dt$r_ = ''
-
-  for(i in 1:dim(dt)[1]){
-    aux0 = as.numeric(as.character(aux[[i]][ aux[[i]]!='']  ))
-    aux0_ = as.numeric(as.character(aux_[[i]][ aux_[[i]]!='']  ))
-    #tn, fp, fn, tp
-    dt$p[i] = aux0[4]/(aux0[4]+aux0[2])
-    dt$p_[i] = aux0_[4]/(aux0_[4]+aux0_[2])
-    dt$r[i] = aux0[4]/(aux0[4]+aux0[3])
-    dt$r_[i] = aux0_[4]/(aux0_[4]+aux0_[3])
-  }
-
-  dt$p = as.numeric(dt$p)
-  dt$p_ = as.numeric(dt$p_)
-  dt$r = as.numeric(dt$r)
-  dt$r_ = as.numeric(dt$r_)
-
-  #increase size, work on the colors and dots
-  dt_pr = subset(dt,select = c(p,r,model_name))
-  dt_pr$Data= 'Testing Set'
-  dt_pr_ = subset(dt,select = c(p_,r_,model_name))
-  dt_pr_$Data= 'Full Set'
-  names(dt_pr_) = names(dt_pr)
-  dt_pr = rbind(dt_pr_,dt_pr)
-  dt = dt[order(dt$f1_,decreasing = TRUE),]
-
-  #new[new=='Logistic Regression']='LR'
-  dt1 = subset(dt,model_name==new[1])[1,]
-  for(i in 2:length(new)){
-    dt1 = rbind(dt1,subset(dt,model_name==new[i])[1,])
-  }
-
-  }
-
-if(RUN_CAUSAL_ROC){
-  #references
-  #https://cran.r-project.org/web/packages/plotROC/vignettes/examples.html
-  setwd("~/GitHub/project/results_k")
-  #create a list of the files from your target directory
-  file_list <- list.files(path="~/GitHub/project/results_k")
-
-  flag = TRUE
-  count = 0
-  #had to specify columns to get rid of the total column
-  for (i in 1:length(file_list)){
-    file = file_list[i]
-    if( strsplit(file,'_')[[1]][1] == 'roc'){
-      if(flag){
-        data = read.table(file, sep = ';', header = T)
-        ksize =  strsplit(file,'_')[[1]][2]
-        if(ksize == 'mf10' || ksize == 'pca10'|| ksize == 'ac10'){
-          data$k = 10
-          data$method = gsub('10','',ksize)
-          data$id = file
-        }
-        if(ksize == 'mf20' || ksize == 'pca20'|| ksize == 'ac20'){
-          data$k = 20
-          data$method = gsub('20','',ksize)
-          data$id = file
-        }
-        if(ksize == 'mf40' || ksize == 'pca40'|| ksize == 'ac40'){
-          data$k = 40
-          data$method = gsub('40','',ksize)
-          data$id = file
-
-        }
-        if(ksize == 'mf60' || ksize == 'pca60'|| ksize == 'ac60'){
-          data$k = 60
-          data$method = gsub('60','',ksize)
-          data$id = file
-
-        }
-        if(ksize == 'bart'){
-          data$pred = 1-data$pred
-          data$k = 30
-          data$method = ksize
-          data$id = file
-
-        }
-        flag = FALSE
-        count = 1
-      }else{
-          data0 = read.table(file, sep = ';', header = T)
-          ksize =  strsplit(file,'_')[[1]][2]
-          if(ksize == 'mf10' || ksize == 'pca10'|| ksize == 'ac10'){
-            data0$k = 10
-            data0$method = gsub('10','',ksize)
-            data0$id = file
-
-          }
-          if(ksize == 'mf20' || ksize == 'pca20'|| ksize == 'ac20'){
-            data0$k = 20
-            data0$method = gsub('20','',ksize)
-            data0$id = file
-          }
-          if(ksize == 'mf40' || ksize == 'pca40'|| ksize == 'ac40'){
-            data0$k = 40
-            data0$method = gsub('40','',ksize)
-            data0$id = file
-          }
-          if(ksize == 'mf60' || ksize == 'pca60'|| ksize == 'ac60'){
-            data0$k = 60
-            data0$method = gsub('60','',ksize)
-            data0$id = file
-          }
-          if(ksize == 'bart'){
-            data0$pred = 1-data0$pred
-            data0$k = 30
-            data0$method = ksize
-            data0$id = file
-          }
-          data = rbind(data,data0)
-          count = count + 1
-      }
-
-    }
-  }
-  require(wesanderson)
-  data$k = as.factor(data$k)
-  data0 = subset(data, method == 'bart' )
-  data1 = subset(data, method ==  'ac' )
-  data2 = subset(data, method ==  'mf' )
-  data3 = subset(data, method == 'pca' )
-  g0 <- ggplot(data0, aes(d = y01, m = pred, fill = id, color = k)) +
-    geom_roc(show.legend = FALSE,n.cuts = 0) +
-    style_roc(xlab='False Positive Rate',ylab='True Positive Rate')+
-    labs(caption ='a. BART')+
-    theme(plot.caption = element_text(size=10))+
-    scale_color_brewer(palette = 'RdYlBu')
-
-  g1 <- ggplot(data1, aes(d = y01, m = pred, fill = id, color = k)) +
-    geom_roc(show.legend = FALSE,n.cuts = 0) +
-    style_roc(xlab='False Positive Rate',ylab='True Positive Rate')+
-    labs(caption ='c. DA+Autoencoder')+
-    theme(plot.caption = element_text(size=10))+
-    scale_color_brewer(palette = 'Oranges')
-    #scale_color_manual(values=wes_palette(n=4, name="Zissou1"))
-
-  g2 <- ggplot(data2, aes(d = y01, m = pred, fill = id, color = k)) +
-    geom_roc(show.legend = FALSE,n.cuts = 0) +
-    style_roc(xlab='False Positive Rate',ylab='True Positive Rate')+
-    labs(caption = 'b. DA+Matrix Factorization')+
-    theme(plot.caption = element_text(size=10))+
-    scale_color_brewer(palette = 'Oranges')
-
-
-  g3 <- ggplot(data3, aes(d = y01, m = pred, fill = id, color = k)) +
-    geom_roc(show.legend = FALSE,n.cuts = 0) +
-    style_roc(xlab='False Positive Rate',ylab='True Positive Rate')+
-    labs(caption ='d. DA+PCA')+
-    theme(plot.caption = element_text(size=10))+
-    scale_color_brewer(palette = 'Oranges')
-
-}
 
 if(CREATE_CGC_BASELINES){
   #References
@@ -290,35 +104,39 @@ if(CREATE_CGC_BASELINES){
 
 }
 
+setwd("~/GitHub/ParKCa/results")
 if(RUN_CGC_comparison){
-  baselines = read.table('~\\Documents\\GitHub\\project\\results\\cgc_baselines.txt',
-              header = TRUE, sep=';')
-  baselines = subset(baselines, select = c(method,driver_genes,f1_))
-
-  top$driver_genes = c(494,480,483,498,505,398,376,373)
-  top$aux = top$model_name
-  top$aux[top$aux=='Logistic Regression']='LR'
-  top$aux[top$aux=='Unbiased PU']='UPU'
-  top$method = paste(top$aux,c(1,2,3,4,5,1,2,3),sep='')
-
-  top_comparison = subset(top,select=c(method,driver_genes,f1_))
-  top_comparison$class = 'new'
-  baselines$class = 'baseline'
-
-
-  data = rbind(top_comparison,baselines)
-  data = subset(data, method!='UPU3')
-  data = subset(data, method!='UPU4')
-  data = subset(data, method!='UPU5')
-  data = subset(data, method!='LR3')
-
-  ggplot(data=data,aes(x=f1_,y=driver_genes,color=class,label=method))+geom_point(size=2)+
-    theme_minimal()+scale_x_continuous(name='F1-score',limits=c(0.08,0.28))+
-    scale_y_continuous(name='Driver Genes Recovered',limits=c(45,550))+
-    geom_text(hjust = 0, nudge_x = 0.002,nudge_y = 1,angle = 60,show.legend = FALSE)+
-    scale_color_manual(values=c('blue','green'),guide=FALSE)
+  baselines = read.table('cgc_baselines.txt',header = TRUE, sep=';')
+  experime1 = read.table('eval_metalevel1.txt', header = TRUE, sep = ';')
+  experime0 = read.table('eval_metalevel0.txt', header = TRUE, sep = ';')
+  names(experime1)[2] = 
+  
+  g1data = rbind(experime0[,c(2,3,4,7)],experime1[,c(2,3,4,7)])
+  g1data$name = c(rep('level 0 learner',dim(experime0)[1]), rep('meta-learner',dim(experime1)[1]))
+  g1data$name[g1data$metalearners=='random']='random'
+  
+  
+  g1 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
+    geom_point()+theme_minimal() +
+    scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
+    scale_x_continuous('Precision',limits=c(-0.09,1.05))+
+    scale_colour_manual(values = c("#FC4E07", "#3cb371","#9370db" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
+    #scale_shape_manual(name = "",
+    #                   labels = c("Level 0 Learners", "Meta-Learner", "Random"),
+    #                   values = c(15,16,17))+
+    guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
+    labs(color='',shape='',caption = 'a.')+
+    theme(legend.position = c(0.8,0.75),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=9),
+          legend.key.size = unit(0.5,'cm'))
 
 
+  
+  g2data = rbind(baselines[,c(1,4,5, 6)],experime1[,c(2,3,4,7)])
+  g2data$name = c(rep('level 0 learner',dim(experime0)[1]), rep('meta-learner',dim(experime1)[1]))
+  g2data$name[g2data$metalearners=='random']='random'  
+  
 }
 
 
