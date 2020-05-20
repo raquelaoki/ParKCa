@@ -320,13 +320,16 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
                             coef, roc, coln = deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
                             roc_table = roc_table.append(roc,ignore_index=True)
                             coefk_table[coln] = coef
+                        else:
+                            print('skip',name)
 
                  print('--------- DONE ---------')
                  coefk_table['genes'] = colnames
 
-                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-                 eval.roc_plot('results//roc_'+str(k)+'.txt')
+                 #CHANGE HERE 20/05 
+                 #roc_table.to_pickle('results//roc_'+str(k)+'.txt')
+                 coefk_table.to_pickle('results//coef2_'+str(k)+'.txt')
+                 #eval.roc_plot('results//roc_'+str(k)+'.txt')
 
         if BARTBOOL:
             print('BART')
@@ -376,13 +379,12 @@ def classification_models(y,y_,X,X_,name_model):
         #https://github.com/t-sakai-kure/pywsl
         prior =.5 #change for the proportion of 1 and 0
         param_grid = {'prior': [prior],
-                          'lam': np.logspace(-3, 1, 5), #what are these values
+                          'lam': np.logspace(-3, 3, 5), #what are these values
                           'basis': ['lm']}
-        lambda_list = np.logspace(-3, 1, 5)
         #upu (Unbiased PU learning)
         #https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
         model = GridSearchCV(estimator=pu_mr.PU_SL(),
-                               param_grid=param_grid, cv=10, n_jobs=-1)
+                               param_grid=param_grid, cv=3, n_jobs=-1)
         X = np.matrix(X)
         y = np.array(y)
         model.fit(X, y)
@@ -391,7 +393,18 @@ def classification_models(y,y_,X,X_,name_model):
         print('lr',X.shape[1])
         X = np.matrix(X)
         y = np.array(y)
-        model = sm.Logit(y,X).fit_regularized(method='l1')
+        #model = sm.Logit(y,X).fit_regularized(method='l1')
+        from sklearn.linear_model import LogisticRegression
+        w1 = y.sum()/len(y)
+        w0 = 1 - w1
+        sample_weight = {0:w1,1:w0}
+        model = LogisticRegression(C=.1,class_weight=sample_weight,penalty='l2') #
+        model.fit(X,y)
+        
+        #p = LogisticRegression(C=1e9,class_weight=sample_weight).fit(X_train,y_train).predict(X_train)
+
+
+    
 
     elif name_model=='rf':
         print('rd',X.shape[1])
@@ -400,6 +413,7 @@ def classification_models(y,y_,X,X_,name_model):
         sample_weight = np.array([w if i == 1 else 1 for i in y])
         model = RandomForestClassifier(max_depth=12, random_state=0)
         model.fit(X, y,sample_weight = sample_weight)
+        #solver='lbfgs'
 
     else:
         print('random',X.shape[1])
@@ -424,9 +438,10 @@ def classification_models(y,y_,X,X_,name_model):
         print('\nPrecision ',precision(1,confusion_matrix(y_,y_pred)))
         print('Recall',recall(1,confusion_matrix(y_,y_pred)))
 
-    if name_model == 'lr':
-        y_pred = [0 if i<0.5 else 1 for i in y_pred]
-        ypred = [0 if i<0.5 else 1 for i in ypred]
+    #if name_model == 'lr':
+     #   print(y_pred.sum(),y_pred)
+     #   y_pred = [0 if i<0.5 else 1 for i in y_pred]
+     #   ypred = [0 if i<0.5 else 1 for i in ypred]
 
     #Some models pred -1 instead of 0
     y_pred = np.where(y_pred==-1,0,y_pred)

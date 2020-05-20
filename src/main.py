@@ -46,7 +46,7 @@ level 0 outcome: metastasis
 #models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=False, CEVAEBOOL=False,path = path)
 
 features_bart =  pd.read_csv("results\\coef_bart.txt",sep=';')
-features_da15 = pd.read_pickle("results\\coef_15.txt")
+features_da15 = pd.read_pickle("results\\coef2_15.txt")
 level1data = features_bart.merge(features_da15,  left_on='gene', right_on='genes').drop(['genes'],1)
 cgc_list = dp.cgc('extra\\cancer_gene_census.csv')
 level1data = cgc_list.merge(level1data, left_on='genes',right_on='gene',how='right').drop(['genes'],1)
@@ -61,6 +61,9 @@ data1.head()
 
 #Metalearners
 experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
+models.meta_learner(data1, ['lr'])
+
+
 experiments2 = eval.first_level_asmeta(['bart_all',  'bart_FEMALE',  'bart_MALE' ],
                         ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE'],
                         data1)
