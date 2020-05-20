@@ -156,5 +156,6 @@ def first_level_asmeta(colb,colda, data1):
         
     return roc_table
 
+#exp_plot('results\\cgc_baselines.txt','results\\eval_metalevel1.txt','results\\eval_metalevel0.txt')
+#path_baselines, path_ex0, path_ex1 = 'results\\cgc_baselines.txt','results\\eval_metalevel1.txt','results\\eval_metalevel0.txt'
 
-    

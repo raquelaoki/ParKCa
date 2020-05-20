@@ -297,13 +297,13 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
     NOTE: This code does not run the BART, it only reads the results.
     BART model was run using R
     '''
-    if APPLICATION:
+    if APPLICATIONBOOL:
         k_list = [15,30]
         pathfiles = path+'\\data'
         listfiles = [f for f in listdir(pathfiles) if isfile(join(pathfiles, f))]
         b =100
 
-        if DA:
+        if DABOOL:
             print('DA')
             skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
             for k in k_list:
@@ -317,26 +317,26 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
                         #change filename
                         name = filename.split('_')[-1].split('.')[0]
                         if name not in skip:
-                            coef, roc, coln = models.deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
+                            coef, roc, coln = deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
                             roc_table = roc_table.append(roc,ignore_index=True)
                             coefk_table[coln] = coef
 
                  print('--------- DONE ---------')
                  coefk_table['genes'] = colnames
 
-                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-                 eval.roc_plot('results//roc_'+str(k)+'.txt')
+                 #roc_table.to_pickle('results//roc_'+str(k)+'.txt')
+                 #coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
+                 #eval.roc_plot('results//roc_'+str(k)+'.txt')
 
-        if BART:
+        if BARTBOOL:
             print('BART')
             #MODEL AND PREDICTIONS MADE ON R
             filenames=['results//bart_all.txt','results//bart_MALE.txt','results//bart_FEMALE.txt']
             eval.roc_table_creation(filenames,'bart')
             eval.roc_plot('results//roc_'+'bart'+'.txt')
 
-        if BART and DA:
-            filenames=['results//roc_bart.txt','results//roc_15.txt']
+        if BARTBOOL and DABOOL:
+            #filenames=['results//roc_bart.txt','results//roc_15.txt']
             eval.roc_plot_all(filenames)
 
 #Meta-learner
