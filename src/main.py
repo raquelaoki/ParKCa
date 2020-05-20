@@ -8,8 +8,8 @@ import time
 import matplotlib.pyplot as plt
 
 
-path = 'C://Users//raoki//Documents//GitHub//ParKCa'
-#path = 'C://Users//raque//Documents//GitHub//ParKCa'
+#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
 sys.path.append(path+'//extra')
@@ -43,7 +43,7 @@ Real-world application
 level 0 data: gene expression of patients with cancer
 level 0 outcome: metastasis
 '''
-models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=False, CEVAEBOOL=False,path = path)
+#models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=False, CEVAEBOOL=False,path = path)
 
 features_bart =  pd.read_csv("results\\coef_bart.txt",sep=';')
 features_da15 = pd.read_pickle("results\\coef_15.txt")
@@ -98,91 +98,22 @@ pathy01 = 'data_s\\snp_simulated1_y01.txt'
 tc  = pd.read_pickle(pathtc)
 y01 = pd.read_pickle(pathy01)
 
-tc_sim1 = tc['sim_0']
-tc_sim1_bin = [1 if i != 0 else 0 for i in tc_sim1]
-y01_sim1 = y01['sim_0']
-#roc_table1.set_index('learners', inplace=True)
 
-train = pd.read_pickle('C:\\Users\\raque\\Documents\\GitHub\\ParKCa\\data_s\\snp_simulated1_0.txt')
-coef, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,'test',10,10)
+for i in range(9):
+    sim = 'sim_'+str(i)
+    tc_sim1 = tc[sim]
+    tc_sim1_bin = [1 if i != 0 else 0 for i in tc_sim1]
+    y01_sim1 = y01[sim]
 
-#tc01 = [1 if i!= 0 else 0 for i in tc_sim1]
-#co01 = [1 if i!= 0 else 0 for i in coef]
-#confusion_matrix(tc01,co01)
-#f1_score(tc01,co01)
+    train = pd.read_pickle('data_s\\snp_simulated1_'+str(i)+'.txt')
+    coef, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,sim,15,100)
+    
+    #Join CEVAE results
+    cavae = dp.join_simulation(path = 'results\\simulations\\cevae_output_sim'+str(i)+'_', files = ['a','b'])
+    
+    
+    data = pd.DataFrame({'cevae':cavae['cate'],'coef':coef,'y_out':tc_sim1_bin})
+    models.meta_learner(data,['rf','lr','random','upu'])
+    eval.first_level_asmeta(['cevae' ],['coef'],data)
+    
 
-
-#LOAD CEVAE RESULTS
-dp.join_simulation()
-
-#There is potential
-data = pd.DataFrame({'cevae':sim1['cate'],'coef':coef,'y_out':tc_sim1_bin})
-models.meta_learner(data,['rf','lr','random','upu'])
-
-
-
-'''
-if CEVAE:
-    #roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
-    #12:16, 14/05/2020
-    #testing
-    start_time = time.time()
-    train_path = 'data_s//snp_simulated_0.txt'
-    y01_path = 'data_s//snp_simulated_y01.txt'
-    y01 = np.asmatrix(pd.read_pickle(y01_path))[:,0]
-    #for t in range(SIMULATIONS):
-        #CHECK INDEXS, I THINK IM DOING WRONG ASSOCIATIONS
-    at0 = []
-    at1 = []
-    cate = []
-    y01_predicted =[]
-    y01_ = []
-
-    for (y0, y1, y10, y01_pred, yte) in cevae.model(n_causes,train_path,y01):
-        at0.append(y0)
-        at1.append(y1)
-        cate.append(y10)
-        y01_predicted.append(y01_pred)
-        y01_.append(yte)
-        if len(at0)%100 == 0:
-            output = pd.DataFrame({'at0':at0,
-                                   'at1':at1,
-                                   'cate':cate})
-
-            predictions = np.stack( y01_predicted, axis=0 ).reshape(len(y01_predicted),len(y01_predicted[0]))
-            testing_set = np.stack( y01_, axis=0 ).reshape(len(y01_),len(y01_[0]))
-            predictions = pd.DataFrame(np.transpose(predictions))
-            testing_set = pd.DataFrame(np.transpose(testing_set))
-            output.to_pickle('results//simulations//cevae_output.txt')
-            predictions.to_pickle('results//simulations//cevae_pred.txt')
-            testing_set.to_pickle('results//simulations//cevae_test.txt')
-
-
-    output = pd.DataFrame({'at0':at0,'at1':at1,'cate':cate})
-
-    predictions = np.stack( y01_predicted, axis=0 ).reshape(len(y01_predicted),len(y01_predicted[0]))
-    testing_set = np.stack( y01_, axis=0 ).reshape(len(y01_),len(y01_[0]))
-    predictions = pd.DataFrame(np.transpose(predictions))
-    testing_set = pd.DataFrame(np.transpose(testing_set))
-
-    output.to_pickle('results//simulations//cevae_output.txt')
-    predictions.to_pickle('results//simulations//cevae_pred.txt')
-    testing_set.to_pickle('results//simulations//cevae_test.txt')
-    print("--- %s minutes ---" % str((time.time() - start_time)/60))
-
-
-    #y01_pred_ = [1 if i >0.5 else 0 for i in y_pred]
-    #f1_score(yte,y01_pred_)
-    #f1_score(yte,npr.binomial(1,yte.sum()/len(yte),size=len(yte)))
-
-    ##coef, roc, coln = models.deconfounder_PPCA_LR(train_s,G.columns,y01,name,k,10)
-    #roc_table = roc_table.append(roc,ignore_index=True)
-    #coefk_table[coln] = coef
-    ##tc01 =[1 if tc[i]>0 else 0 for i in range(len(tc))]
-    ##coef01 = [1 if coef[i]>0 else 0 for i in range(len(coef))]
-    ##from sklearn.metrics import confusion_matrix,f1_score, accuracy_score
-    ##confusion_matrix(tc01,coef01)
-    #Results are bad, but I think there is hope
-    #Copy others from application
-    #exp.roc_plot('results//sroc_'+str(k)+'.txt')
-'''

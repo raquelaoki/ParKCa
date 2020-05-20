@@ -324,9 +324,9 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
                  print('--------- DONE ---------')
                  coefk_table['genes'] = colnames
 
-                 #roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-                 #coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
-                 #eval.roc_plot('results//roc_'+str(k)+'.txt')
+                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
+                 coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
+                 eval.roc_plot('results//roc_'+str(k)+'.txt')
 
         if BARTBOOL:
             print('BART')
