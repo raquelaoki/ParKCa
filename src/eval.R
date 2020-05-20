@@ -105,11 +105,16 @@ if(CREATE_CGC_BASELINES){
 
 }
 
+RUN_CGC_comparison = TRUE
 if(RUN_CGC_comparison){
   baselines = read.table('cgc_baselines.txt',header = TRUE, sep=';')
   experime1 = read.table('eval_metalevel1.txt', header = TRUE, sep = ';')
   experime0 = read.table('eval_metalevel0.txt', header = TRUE, sep = ';')
   names(experime1)[2] = names(experime0)[2] = names(baselines)[1]
+  baselines$method[baselines$method=='OncodriveClust']='ODC*'
+  baselines$method[baselines$method=='ActiveDriver']='AD*'
+  baselines$method[baselines$method=='OncodriveFML']='ODFML*'
+  
   
   g1data = rbind(experime0[,c(2,3,4,7)],experime1[,c(2,3,4,7)])
   g1data$name = c(rep('level 0 learner',dim(experime0)[1]), rep('meta-learner',dim(experime1)[1]))
@@ -117,16 +122,17 @@ if(RUN_CGC_comparison){
   
   
   g1 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
-    geom_point(size=2)+theme_minimal() +
+    geom_point(size=3)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
-    scale_x_continuous('Precision',limits=c(-0.09,1.05))+
+    scale_x_continuous('Precision',limits=c(-0.09,0.7))+
     scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
     guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
-    labs(color='',shape='',caption = 'a.')+
-    theme(legend.position = c(0.8,0.9),
+    labs(color='',shape='',caption = 'b.')+
+    theme(legend.position = c(0.85,0.8),
           legend.background= element_rect(fill="white",colour ="white"),
-          legend.text = element_text(size=9),
-          legend.key.size = unit(0.5,'cm'))
+          legend.text = element_text(size=12),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=12))
 
 
   
@@ -134,40 +140,41 @@ if(RUN_CGC_comparison){
   g2data$name = c(rep('baselines',dim(baselines)[1]), rep('meta-learners',dim(experime1)[1]))
   g2data$name[g2data$method=='random']='random'  
   g2data$F1 = round(g2data$f1_,2)
-  g2data = g2data[order(g2data$F1,decreasing=TRUE),]
-  g2data <- within(g2data,method<-factor(method,levels=g2data$method))
+
   
   g2 <- ggplot(g2data,aes(x=precision ,y=recall,color=name,shape=name))+
-    geom_point(size=2)+theme_minimal() +
+    geom_point(size=3)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
-    scale_x_continuous('Precision',limits=c(-0.09,1.05))+
+    scale_x_continuous('Precision',limits=c(-0.09,0.7))+
     scale_colour_manual(values = c("#999999", "#56B4E9","#E69F00" )) +
     scale_fill_manual(values = c("#999999", "#56B4E9","#E69F00"))+
     guides(size=FALSE,fill = FALSE, color=guide_legend(override.aes=list(linetype=0)))+
-    labs(color='',shape='',caption = 'b.')+
+    labs(color='',shape='',caption = 'c.')+
     geom_label_repel(aes(x=precision,y=recall,size=0.04,fill=name,label=method),
                      box.padding = unit(0.4, "lines"),
                      fontface='bold',color='white',segment.color = 'grey50')+
-    theme(legend.position = c(0.8,0.9),
+    theme(legend.position = c(0.85,0.8),
           legend.background= element_rect(fill="white",colour ="white"),
-          legend.text = element_text(size=9),
-          legend.key.size = unit(0.5,'cm'))+
+          legend.text = element_text(size=12),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=12))
    
-    
-    
   
+  g2data = g2data[order(g2data$F1,decreasing=TRUE),]
+  g2data <- within(g2data,method<-factor(method,levels=g2data$method)) 
   
   g3<- ggplot(g2data,aes(method,F1,fill=name))+geom_bar(stat='identity')+
     geom_text(aes(label=F1), hjust=1.1, color="white", size=3.5)+
     theme_minimal()+labs(fill='')+
-    theme(legend.position = c(0.8, 0.9),
+    theme(text = element_text(size=12), 
+          legend.position = c(0.85, 0.9),
+          legend.text = element_text(size=12),
           legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
     scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
     scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
     xlab('')+ylab('F1-score')+coord_flip()+
-    labs(caption = 'c.')
-    
-  grid.arrange(g1,g2,g3, ncol=3)
+    labs(caption = 'd.')
+  grid.arrange(g1,g1,g2,g3, ncol=2)
   
 }
 

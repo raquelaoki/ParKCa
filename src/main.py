@@ -8,8 +8,8 @@ import time
 import matplotlib.pyplot as plt
 
 
-#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
-path = 'C://Users//raque//Documents//GitHub//ParKCa'
+path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+#path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
 sys.path.append(path+'//extra')
@@ -43,7 +43,7 @@ Real-world application
 level 0 data: gene expression of patients with cancer
 level 0 outcome: metastasis
 '''
-#models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=True, CEVAEBOOL=False,path)
+models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=False, CEVAEBOOL=False,path = path)
 
 features_bart =  pd.read_csv("results\\coef_bart.txt",sep=';')
 features_da15 = pd.read_pickle("results\\coef_15.txt")
