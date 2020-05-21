@@ -18,7 +18,7 @@ Causality for Computational Biology
 * conda install -c conda-forge scikit-allel
 * conda install -c conda-forge progressbar
 * conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
-
+* conda install pytorch=0.4.1 cuda92 -c pytorch (Old GPU)
 
 Optional:
 * pip install -e "git+https://github.com/google/edward2.git#egg=edward2"
