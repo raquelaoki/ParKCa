@@ -156,6 +156,41 @@ def first_level_asmeta(colb,colda, data1):
         
     return roc_table
 
+
+
+def diversity(colb,colda, data1):
+    #Learners   
+    y = data1['y_out']
+    X = data1.drop(['y_out'], axis=1)
+    #from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
+    #y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+    
+    #BART
+    #col = ['bart_all',  'bart_FEMALE',  'bart_MALE' ]
+    for i in colb: 
+        X[i] = np.abs(X[i])
+        q = X[i].quantile(0.9)
+        X[i] = [1 if j>q else 0 for j in X[i]]
+        #X_test[i] = [1 if j>q else 0 for j in X_test[i]]
+        
+    #DA
+    #col = ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE']
+    for i in colda: 
+        X[i] = [1 if j!=0 else 0 for j in X[i]]
+        X[i] = [1 if j!=0 else 0 for j in X[i]]
+        
+    q_ = []   
+    X = X.to_numpy()
+    for i in range(X.shape[1]-1):
+        for j in range(i+1,X.shape[1]):
+            #from sklearn.metrics import roc_curve,roc_auc_score,confusion_matrix,f1_score
+            tn, fp, fn, tp = confusion_matrix(X[:,i],X[:,j]).ravel()
+            q_ij = (tp*tn-fp*fn)/(tp*tn+fp*fn)
+            q_.append(q_ij)
+        
+    return np.mean(q_),q_
+
+
 #exp_plot('results\\cgc_baselines.txt','results\\eval_metalevel1.txt','results\\eval_metalevel0.txt')
 #path_baselines, path_ex0, path_ex1 = 'results\\cgc_baselines.txt','results\\eval_metalevel1.txt','results\\eval_metalevel0.txt'
 

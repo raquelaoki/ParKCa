@@ -113,7 +113,7 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
         coef_z = []
         roc = []
 
-    return np.multiply(coef_m,coef_z), roc, filename
+    return np.multiply(coef_m,coef_z), coef_m, roc, filename
 
 def fm_PPCA(train,latent_dim, flag_pred):
     #Reference: https://github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_PCA.ipynb
@@ -308,6 +308,7 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
             skip = ['CHOL','LUSC','HNSC','PRAD'] #F1 score very low
             for k in k_list:
                  coefk_table = pd.DataFrame(columns=['genes'])
+                 coefkc_table = pd.DataFrame(columns=['genes'])
                  roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
                  #test
                  for filename in listfiles:
@@ -317,18 +318,21 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
                         #change filename
                         name = filename.split('_')[-1].split('.')[0]
                         if name not in skip:
-                            coef, roc, coln = deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
+                            coef, coef_continuos, roc, coln = deconfounder_PPCA_LR(train,colnames,y01,name,k,b)
                             roc_table = roc_table.append(roc,ignore_index=True)
                             coefk_table[coln] = coef
+                            coefkc_table[coln] = coef_continuos
                         else:
                             print('skip',name)
 
                  print('--------- DONE ---------')
                  coefk_table['genes'] = colnames
+                 coefkc_table['genes'] = colnames
 
                  #CHANGE HERE 20/05 
-                 #roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-                 coefk_table.to_pickle('results//coef2_'+str(k)+'.txt')
+                 roc_table.to_pickle('results//roc_'+str(k)+'.txt')
+                 #coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
+                 coefkc_table.to_pickle('results//coefcont_'+str(k)+'.txt')
                  #eval.roc_plot('results//roc_'+str(k)+'.txt')
 
         if BARTBOOL:
@@ -450,12 +454,16 @@ def classification_models(y,y_,X,X_,name_model):
     #fpr, tpr, _ = roc_curve(y_,y_pred)
     pr = precision(1,confusion_matrix(y_,y_pred))
     re = recall(1,confusion_matrix(y_,y_pred))
+
+    prfull = precision(1,confusion_matrix(y_full,ypred))
+    refull = recall(1,confusion_matrix(y_full,ypred))
+
     auc = roc_auc_score(y_,y_pred)
     f1 = f1_score(y_full,ypred)
     f1_ = f1_score(y_,y_pred)
 
     #tp_genes = np.multiply(y_full, y_full_)
-    roc = {'metalearners': name_model,'precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_}
+    roc = {'metalearners': name_model,'precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_,'prfull':prfull,'refull':refull}
     warnings.filterwarnings("default")
     return roc, ypred, y_pred
 
@@ -472,7 +480,7 @@ def meta_learner(data1, models):
     input: level 1 data
     outout:
     '''
-    roc_table = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_'])
+    roc_table = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','prfull','refull'])
     tp_genes = []
 
     #split data trainint and testing
@@ -504,10 +512,13 @@ def meta_learner(data1, models):
     #fpr, tpr, _ = roc_curve(y_test,e_pred)
     pr = precision(1,confusion_matrix(y_test,e_pred))
     re = recall(1,confusion_matrix(y_test,e_pred))
+    prfull = precision(1,confusion_matrix(np.hstack([y_test,y_train]),e_full))
+    refull = recall(1,confusion_matrix(np.hstack([y_test,y_train]),e_full))
+
     auc = roc_auc_score(y_test,e_pred)
     f1 = f1_score(np.hstack([y_test,y_train]),e_full)
     f1_ = f1_score(y_test,e_pred)
-    roc = {'metalearners': 'ensemble','precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_}
+    roc = {'metalearners': 'ensemble','precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_,'prfull':prfull,'refull':refull}
     roc_table = roc_table.append(roc,ignore_index=True)
     return roc_table
 
