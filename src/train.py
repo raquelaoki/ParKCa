@@ -47,7 +47,8 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 import torch.nn as nn
 import torch.optim as optim
-    
+from torch.utils.data import WeightedRandomSampler
+
 #Learners
 def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     '''
@@ -329,7 +330,7 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
                  coefk_table['genes'] = colnames
                  coefkc_table['genes'] = colnames
 
-                 #CHANGE HERE 20/05 
+                 #CHANGE HERE 20/05
                  roc_table.to_pickle('results//roc_'+str(k)+'.txt')
                  #coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
                  coefkc_table.to_pickle('results//coefcont_'+str(k)+'.txt')
@@ -404,11 +405,11 @@ def classification_models(y,y_,X,X_,name_model):
         sample_weight = {0:w1,1:w0}
         model = LogisticRegression(C=.1,class_weight=sample_weight,penalty='l2') #
         model.fit(X,y)
-        
+
         #p = LogisticRegression(C=1e9,class_weight=sample_weight).fit(X_train,y_train).predict(X_train)
 
 
-    
+
 
     elif name_model=='rf':
         print('rd',X.shape[1])
@@ -524,80 +525,88 @@ def meta_learner(data1, models):
 
 
 def nn_classifier(y_train, y_test, X_train, X_test, EPOCHS, BATCH_SIZE, LEARNING_RATE):
-    
-    
+
+
     #https://towardsdatascience.com/pytorch-tabular-binary-classification-a0368da5bb89
 
-    
+
     class trainData(Dataset):
-        
+
         def __init__(self, X_data, y_data):
             self.X_data = X_data
             self.y_data = y_data
-            
+
         def __getitem__(self, index):
             return self.X_data[index], self.y_data[index]
-            
+
         def __len__ (self):
             return len(self.X_data)
-    
-    
-    train_data = trainData(torch.FloatTensor(X_train.to_numpy()), 
+
+
+    train_data = trainData(torch.FloatTensor(X_train.to_numpy()),
                            torch.FloatTensor(y_train.to_numpy()))
-    ## test data    
+    ## test data
     class testData(Dataset):
-        
+
         def __init__(self, X_data):
             self.X_data = X_data
-            
+
         def __getitem__(self, index):
             return self.X_data[index]
-            
+
         def __len__ (self):
             return len(self.X_data)
-        
-    
+
+
     test_data = testData(torch.FloatTensor(X_test.to_numpy()))
     test_data_full = testData(torch.FloatTensor(pd.concat([X_train, X_test],axis=0).to_numpy()))
     #test_data = testData(torch.FloatTensor(X_test.to_numpy()))
-    
+
+
+    class_sample_count = np.array([len(np.where(y_train==t)[0]) for t in np.unique(y_train)])
+    weight = 1. / class_sample_count
+    samples_weight = np.array([weight[int(t)] for t in y_train])
+
+    samples_weight = torch.from_numpy(samples_weight)
+    sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), len(samples_weight))
+
+
     train_loader = DataLoader(dataset=train_data, batch_size=BATCH_SIZE)
     test_loader = DataLoader(dataset=test_data, batch_size=1)
     test_full = DataLoader(dataset = test_data_full,batch_size=1)
     y_test_full = pd.concat([y_train,y_test],axis =0).to_numpy()
-    
-    
+
+
     class binaryClassification(nn.Module):
         def __init__(self):
             super(binaryClassification, self).__init__()
             # Number of input features is 12.
-            self.layer_1 = nn.Linear(8, 264) 
-            self.layer_2 = nn.Linear(264, 64)
-            self.layer_out = nn.Linear(64, 1) 
-            
+            self.layer_1 = nn.Linear(8, 32)
+            self.layer_2 = nn.Linear(32, 32)
+            self.layer_out = nn.Linear(32, 1)
+
             self.relu = nn.ReLU()
             self.sigmoid = nn.Sigmoid()
-            self.dropout = nn.Dropout(p=0.1)
-            self.batchnorm1 = nn.BatchNorm1d(264)
-            self.batchnorm2 = nn.BatchNorm1d(64)
-            
+            self.batchnorm1 = nn.BatchNorm1d(32)
+            self.batchnorm2 = nn.BatchNorm1d(32)
+
         def forward(self, inputs):
             x = self.relu(self.layer_1(inputs))
             x = self.batchnorm1(x)
-            x = self.dropout(x)
             x = self.relu(self.layer_2(x))
             x = self.batchnorm2(x)
             x = self.sigmoid(self.layer_out(x))
             #x = self.layer_out(x)
-            
+
             return x
-        
+
     model = binaryClassification()
     #model.to(device)
-    #print(model)
+    print(model)
+
     criterion = nn.BCELoss()#BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    
+
     model.train()
     for e in range(1, EPOCHS+1):
         epoch_loss = 0
@@ -608,10 +617,10 @@ def nn_classifier(y_train, y_test, X_train, X_test, EPOCHS, BATCH_SIZE, LEARNING
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
-    
+
     print(f'Epoch {e+0:03}: | Loss: {epoch_loss/len(train_loader):.5f}')
-    
-        
+
+
     y_pred_list = []
     model.eval()
     with torch.no_grad():
@@ -620,13 +629,13 @@ def nn_classifier(y_train, y_test, X_train, X_test, EPOCHS, BATCH_SIZE, LEARNING
             #y_test_pred = torch.sigmoid(y_test_pred)
             #y_pred_tag = torch.round(y_test_pred)
             y_pred_list.append(y_test_pred[0].detach().numpy())
-            
-    
+
+
     y_pred_list = [a.squeeze().tolist() for a in y_pred_list]
     y_pred_list = [1 if a>0.5 else 0 for a in y_pred_list]
     f1_ = f1_score(y_test, y_pred_list)
     print(confusion_matrix(y_test, y_pred_list))
-    
+
     y_pred_list_full = []
     model.eval()
     with torch.no_grad():
@@ -636,10 +645,9 @@ def nn_classifier(y_train, y_test, X_train, X_test, EPOCHS, BATCH_SIZE, LEARNING
             #y_test_pred = torch.sigmoid(y_test_pred)
             #y_pred_tag = torch.round(y_test_pred)
             y_pred_list_full.append(y_test_pred[0].detach().numpy())
-    
+
     y_pred_list_full = [a.squeeze().tolist() for a in y_pred_list_full]
     y_pred_list_full = [1 if a>0.5 else 0 for a in y_pred_list_full]
     f1 = f1_score(y_test_full, y_pred_list_full)
     print(confusion_matrix(y_test_full, y_pred_list_full))
     return f1_, f1
-
