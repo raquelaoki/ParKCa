@@ -199,9 +199,141 @@ aplication_plots <-function(){
   
 }
 
+require(Rmisc)
+library(reshape2)
+
 simulation_plots <-function(){
   level0 = read.table('eval_sim_metalevel0.txt', sep=';', header = T)
   level1 = read.table('eval_sim_metalevel1.txt', sep=';', header = T)
   level1c = read.table('eval_sim_metalevel1c.txt', sep=';', header = T)
-  pehe = read.table('eval_sim_pehe', sep=';', header = T)
+  pehe = read.table('eval_sim_pehe.txt', sep=';', header = T)
+  
+  #NAMES
+  level0$metalearners[level0$metalearners=='cevae'] = 'CEVAE'
+  level0$metalearners[level0$metalearners=='coef'] = 'DA'
+  
+  level1$metalearners[level1$metalearners=='adapter'] = 'Adapter'
+  level1$metalearners[level1$metalearners=='ensemble'] = 'Ensemble'
+  level1$metalearners[level1$metalearners=='lr'] = 'LR'
+  level1$metalearners[level1$metalearners=='random'] = 'Random'
+  level1$metalearners[level1$metalearners=='rf'] = 'RF'
+  level1$metalearners[level1$metalearners=='upu'] = 'UPU'
+  
+  
+  level1c$metalearners[level1c$metalearners=='adapter'] = 'Adapter'
+  level1c$metalearners[level1c$metalearners=='ensemble'] = 'Ensemble'
+  level1c$metalearners[level1c$metalearners=='lr'] = 'LR'
+  level1c$metalearners[level1c$metalearners=='random'] = 'Random'
+  level1c$metalearners[level1c$metalearners=='rf'] = 'RF'
+  level1c$metalearners[level1c$metalearners=='upu'] = 'UPU'
+  
+  #precision x score plot testing 
+  #Save table for Extra Material
+  #AVerage Values 
+  bdg0 = rbind(level0[,c(2,3,4)],level1[,c(2,3,4)])
+  p1a = data.frame(tapply(bdg0$precision,bdg0$metalearners, mean))
+  p1b = data.frame(tapply(bdg0$recall,bdg0$metalearners, mean))
+  p1c = data.frame(tapply(bdg0$precision,bdg0$metalearners, sd))
+  p1d = data.frame(tapply(bdg0$recall,bdg0$metalearners, sd))
+  
+  p1a = data.frame(rownames(p1a),p1a); rownames(p1a)= NULL
+  p1b = data.frame(rownames(p1b),p1b); rownames(p1b)= NULL
+  p1c = data.frame(rownames(p1c),p1c); rownames(p1c)= NULL
+  p1d = data.frame(rownames(p1d),p1d); rownames(p1d)= NULL
+  names(p1a) = c('Method', 'Precision_mean')
+  names(p1b) = c('Method', 'Recall_mean')
+  names(p1c) = c('Method', 'Precision_sd')
+  names(p1d) = c('Method', 'Recall_sd')
+  
+  p1 = merge(merge(merge(p1a,p1b),p1c),p1d)
+  p1$type = 'Meta-Learner'
+  p1$type[p1$Method=='CEVAE'|p1$Method=='DA']='Learner'
+  p1$type[p1$Method=='Random']='Random'
+  
+  #SUPPLEMENTAL MATERIAL SHOULD HAVE IT: 
+  p1
+  
+  g0<-ggplot(p1,aes(x=Precision_mean  ,y=Recall_mean ,color=type,shape=type))+
+    geom_point(size=3)+theme_minimal() +
+    scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
+    scale_x_continuous('Precision',limits=c(-0.09,0.7))+
+    scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
+    guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
+    labs(color='',shape='',caption = 'a.Testing Set (level 1 data)')+
+    theme(legend.position = c(0.85,0.8),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=12),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=12))
+  
+  
+  #similar to other f1 score plot full set 
+  #SAve table to other table 
+
+  
+  aux = rbind(level1[,c(2,6,7)], level0[,c(2,6,7)])
+  level1_s <- melt(aux, id.vars = c("metalearners"))
+  level1_s = summarySE(level1_s, measurevar="value", groupvars=c("variable","metalearners"))
+
+  level1_s$type = 'Meta-Learner'
+  level1_s$type[level1_s$metalearners =='CEVAE'|level1_s$metalearners =='DA']='Learner'
+  level1_s$type[level1_s$metalearners =='Random']='Random'
+  
+  level1_s$F1 = as.character(round(level1_s$value,2))
+  level1_s = level1_s[order(level1_s$value,decreasing=TRUE),]
+  level1_s <- within(level1_s, metalearners<-factor( metalearners,levels= unique(level1_s$metalearners))) 
+  
+  
+  level1_s_testing = subset(level1_s, variable=='f1_')
+  level1_s_full = subset(level1_s, variable=='f1')
+  
+
+  g1<- ggplot(level1_s_testing,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
+    geom_text(aes(label=F1,y=0.015), hjust=1.1, color="white", size=3.5)+
+    geom_errorbar(aes(ymin=value-se, ymax=value+se),
+                  width=.2, position=position_dodge(.9))+
+    theme_minimal()+labs(fill='')+
+    theme(text = element_text(size=12), 
+          legend.position = c(0.85, 0.75),
+          legend.text = element_text(size=12),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    xlab('')+ylab('F1-score')+coord_flip()+
+    labs(caption = 'b.Testing Set Average (level 1 data)')
+  
+  g2<-ggplot(level1_s_full,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
+    geom_text(aes(label=F1,y=0.02), hjust=1.1, color="white", size=3.5)+
+    geom_errorbar(aes(ymin=value-se, ymax=value+se),
+                  width=.2, position=position_dodge(.9))+
+    theme_minimal()+labs(fill='')+
+    theme(text = element_text(size=12), 
+          legend.position = c(0.85, 0.75),
+          legend.text = element_text(size=12),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    xlab('')+ylab('F1-score')+coord_flip()+
+    labs(caption = 'c.Full Set Average (level 1 data)')
+  
+  
+  pehe2 <- melt(pehe[,c(2,3,4,5)], id.vars = c("method"))
+  pehe_s <- summarySE(pehe2, measurevar="value", groupvars=c("variable","method"))
+  
+  
+  
+  aux = rbind(level1c[,c(2,6,7)], level0[,c(2,6,7)])
+  level1c_s <- melt(aux, id.vars = c("metalearners"))
+  level1c_s = summarySE(level1c_s, measurevar="value", groupvars=c("variable","metalearners"))
+  
+
+  
+  #TABLE MAYBE, different scales 
+  ggplot(pehe_s, aes(x=variable, y=value, fill=method)) + 
+    geom_bar(position=position_dodge(), stat="identity") +
+    geom_errorbar(aes(ymin=value-se, ymax=value+se),
+                  width=.2, position=position_dodge(.9))+
+    theme(legend.position="top")
+  
+  grid.arrange(g1,g2, ncol=2)
 }

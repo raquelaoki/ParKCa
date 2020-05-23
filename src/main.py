@@ -6,10 +6,10 @@ import warnings
 warnings.simplefilter("ignore")
 import time
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
-
-path = 'C://Users//raoki//Documents//GitHub//ParKCa'
-#path = 'C://Users//raque//Documents//GitHub//ParKCa'
+#path = 'C://Users//raoki//Documents//GitHub//ParKCa'
+path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
 sys.path.append(path+'//extra')
@@ -84,27 +84,27 @@ if EVALUATION_A:
     experiments1c.to_csv('results\\eval_metalevel1c.txt', sep=';')
     experiments0.to_csv('results\\eval_metalevel0.txt', sep=';')
 
-#more layers and nodes improved
-from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
-
-
-count_class_0, count_class_1 = data1.y_out.value_counts()
-
-# Divide by class
-df_class_0 = data1[data1['y_out'] == 0]
-df_class_1 = data1[data1['y_out'] == 1]
-
-df_class_0_under = df_class_0.sample(4000)
-df_class_1_over = df_class_1.sample(4000, replace=True)
-data2 = pd.concat([df_class_0_under, df_class_1_over], axis=0)
-
-
-y = data1['y_out']
-X = data1.drop(['y_out'], axis=1)
-
-
-y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
-models.nn_classifier(y_train, y_test, X_train, X_test, 1000,10,0.001)
+    #more layers and nodes improved
+    from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
+    
+    
+    count_class_0, count_class_1 = data1.y_out.value_counts()
+    
+    # Divide by class
+    df_class_0 = data1[data1['y_out'] == 0]
+    df_class_1 = data1[data1['y_out'] == 1]
+    
+    df_class_0_under = df_class_0.sample(4000)
+    df_class_1_over = df_class_1.sample(4000, replace=True)
+    data2 = pd.concat([df_class_0_under, df_class_1_over], axis=0)
+    
+    
+    y = data1['y_out']
+    X = data1.drop(['y_out'], axis=1)
+    
+    
+    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+    models.nn_classifier(y_train, y_test, X_train, X_test, 1000,10,0.001)
 
 
 '''
@@ -134,9 +134,11 @@ y01 = pd.read_pickle(pathy01)
 
 
 
-#RUN AGAIN BECAUSE ROC
-dp.sim_level1data([0,1,3],tc,y01,'sim_roc_a')
+#dp.sim_level1data([0,1,3],tc,y01,'sim_roc_a')
 #CHECK PREDICTIVE CHECK
+
+
+
 done = [0,1,3] #pred_check = [0.53]
 
 out_meta = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','prfull','refull','version'])
@@ -146,23 +148,6 @@ pehe = pd.DataFrame(columns=['method','pehe_noncausal', 'pehe_causal','pehe_over
 
 out_diversity = []
 
-def pehe_calc(true_cause,pred_cause, name,version):
-    pehe = [0,0,0]
-    count = [0,0,0]
-    for j in range(len(true_cause)):
-        if true_cause[j]== 0:
-            pehe[0] += pow(true_cause[j]-pred_cause[j],2)
-            count[0] += 1
-        else:
-            pehe[1] += pow(true_cause[j]-pred_cause[j],2)
-            count[1] += 1
-
-        pehe[2] += pow(true_cause[j]-pred_cause[j],2)
-        count[2] += 1
-    pehe_ = {'method':name,'pehe_noncausal':pehe[0]/count[0],
-         'pehe_causal':pehe[1]/count[1],'pehe_overall':pehe[2]/count[2],
-         'version':version}
-    return pehe_
 
 for i in done:
 
@@ -184,7 +169,7 @@ for i in done:
 
     X = np.matrix(data.iloc[:,[1,4]])
     y = np.array(data.iloc[:,5])
-    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=33)
 
     #model = sm.Logit(y,X).fit_regularized(method='l1')
     from sklearn.linear_model import LinearRegression
@@ -192,19 +177,19 @@ for i in done:
     y_pred = model.predict(X_test)
     y_full = model.predict(X)
 
-    pehe_ = pehe_calc(np.array(data.iloc[:,5]), np.array(data.iloc[:,1]),'CEVAE',str(i))
+    pehe_ = eval.pehe_calc(np.array(data.iloc[:,5]), np.array(data.iloc[:,1]),'CEVAE',str(i))
     pehe = pehe.append(pehe_,ignore_index=True)
-    pehe_ = pehe_calc(np.array(data.iloc[:,5]), np.array(data.iloc[:,2]),'DA',str(i))
+    pehe_ = eval.pehe_calc(np.array(data.iloc[:,5]), np.array(data.iloc[:,2]),'DA',str(i))
     pehe = pehe.append(pehe_,ignore_index=True)
-    pehe_ = pehe_calc(np.array(data.iloc[:,5]),y_full,'Meta-learner (Full set)',str(i))
+    pehe_ = eval.pehe_calc(np.array(data.iloc[:,5]),y_full,'Meta-learner (Full set)',str(i))
     pehe = pehe.append(pehe_,ignore_index=True)
-    pehe_ = pehe_calc(y_test,y_pred,'Meta-learner (Testing set)',str(i))
+    pehe_ = eval.pehe_calc(y_test,y_pred,'Meta-learner (Testing set)',str(i))
     pehe = pehe.append(pehe_,ignore_index=True)
 
 
     out_meta = out_meta.append(exp1,ignore_index=True)
-    out_metac = out_meta.append(exp1c,ignore_index=True)
-    out_level0 = out_level0.append(exp1c,ignore_index=True)
+    out_metac = out_metac.append(exp1c,ignore_index=True)
+    out_level0 = out_level0.append(exp0,ignore_index=True)
     out_diversity.append(qav)
 
 

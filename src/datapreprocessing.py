@@ -14,6 +14,9 @@ import sys
 import os
 from scipy import stats
 import random as r
+
+#sys.path.append(path+'//extra')
+
 import train as models
 
 import allel #http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
