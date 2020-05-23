@@ -124,16 +124,17 @@ def first_level_asmeta(colb,colda, data1):
     y = data1['y_out']
     X = data1.drop(['y_out'], axis=1)
     from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
-    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
-    
-    #BART
+    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=33 )                                                       
+
+    #BART/CEVAE
     #col = ['bart_all',  'bart_FEMALE',  'bart_MALE' ]
     for i in colb: 
         X_train[i] = np.abs(X_train[i])
+        X_test[i] = np.abs(X_test[i])
         q = X_train[i].quantile(0.9)
         X_train[i] = [1 if j>q else 0 for j in X_train[i]]
         X_test[i] = [1 if j>q else 0 for j in X_test[i]]
-    
+
     
     #DA
     #col = ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE']
@@ -156,6 +157,58 @@ def first_level_asmeta(colb,colda, data1):
         
     return roc_table
 
+
+
+def diversity(colb,colda, data1):
+    #Learners   
+    y = data1['y_out']
+    X = data1.drop(['y_out'], axis=1)
+    #from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
+    #y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+    
+    #BART
+    #col = ['bart_all',  'bart_FEMALE',  'bart_MALE' ]
+    for i in colb: 
+        X[i] = np.abs(X[i])
+        q = X[i].quantile(0.9)
+        X[i] = [1 if j>q else 0 for j in X[i]]
+        #X_test[i] = [1 if j>q else 0 for j in X_test[i]]
+        
+    #DA
+    #col = ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE']
+    for i in colda: 
+        X[i] = [1 if j!=0 else 0 for j in X[i]]
+        X[i] = [1 if j!=0 else 0 for j in X[i]]
+        
+    q_ = []   
+    X = X.to_numpy()
+    for i in range(X.shape[1]-1):
+        for j in range(i+1,X.shape[1]):
+            #from sklearn.metrics import roc_curve,roc_auc_score,confusion_matrix,f1_score
+            tn, fp, fn, tp = confusion_matrix(X[:,i],X[:,j]).ravel()
+            q_ij = (tp*tn-fp*fn)/(tp*tn+fp*fn)
+            q_.append(q_ij)
+        
+    return np.mean(q_),q_
+
+
 #exp_plot('results\\cgc_baselines.txt','results\\eval_metalevel1.txt','results\\eval_metalevel0.txt')
 #path_baselines, path_ex0, path_ex1 = 'results\\cgc_baselines.txt','results\\eval_metalevel1.txt','results\\eval_metalevel0.txt'
 
+def pehe_calc(true_cause,pred_cause, name,version):
+    pehe = [0,0,0]
+    count = [0,0,0]
+    for j in range(len(true_cause)):
+        if true_cause[j]== 0:
+            pehe[0] += pow(true_cause[j]-pred_cause[j],2)
+            count[0] += 1
+        else:
+            pehe[1] += pow(true_cause[j]-pred_cause[j],2)
+            count[1] += 1
+
+        pehe[2] += pow(true_cause[j]-pred_cause[j],2)
+        count[2] += 1
+    pehe_ = {'method':name,'pehe_noncausal':pehe[0]/count[0],
+         'pehe_causal':pehe[1]/count[1],'pehe_overall':pehe[2]/count[2],
+         'version':version}
+    return pehe_

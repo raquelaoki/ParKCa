@@ -11,8 +11,13 @@ from scipy import sparse
 from scipy.special import expit
 import h5py
 import sys
+import os
 from scipy import stats
 import random as r
+
+#sys.path.append(path+'//extra')
+
+import train as models
 
 import allel #http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
 
@@ -136,9 +141,7 @@ def data_norm(data1):
         for j in range(data1.shape[0]):
             if data1.iloc[j,i]!= 0:
                 data1o[j,i] = (data1.iloc[j,i] - np.mean(nonzero))/np.sqrt(np.var(nonzero))
-            if i==5 and j == 1:
-                print(data1o[j,i])
-                print(data1.iloc[j,i], np.mean(nonzero),np.sqrt(np.var(nonzero)))
+
     data1o = pd.DataFrame(data1o)
     data1o.index = data1.index
     data1o.columns = data1.columns
@@ -319,16 +322,44 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
 
 
 #join simulation 
-def join_simulation(path, files):
+def join_simulation(path, version, files):
     #path = 'results\\simulations\\cevae_output_sim0_'
-    sim = pd.read_pickle(path+files[0]+'.txt')
+    letter = ['a','b','c','d','e','f','g']
+    files = []
+    
+    for l in letter: 
+        check = path+'cevae_output_sim'+str(version)+'_'+l+'.txt'
+        if os.path.isfile(check): 
+            files.append(path+'cevae_output_sim'+str(version)+'_'+l+'.txt')
+    
+    sim = pd.read_pickle(files[0])
     if len(files) >= 1: 
         for i in range(len(files)-1):
             #sim0 = sim0.iloc[0:3599,:]
-            part = pd.read_pickle(path+files[i+1]+'.txt')
+            part = pd.read_pickle(files[i+1])
             sim = pd.concat([sim,part],axis = 0)    
        
     sim.reset_index(inplace = True,drop = True)
     sim['cate'].fillna(0, inplace = True)
     return sim
 
+#level1 data from simulations
+def sim_level1data(done,tc,y01,roc_name):
+    roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
+    for i in done:
+        sim = 'sim_'+str(i)
+        tc_sim1 = tc[sim]
+        tc_sim1_bin = [1 if i != 0 else 0 for i in tc_sim1]
+        y01_sim1 = y01[sim]
+        
+        train = pd.read_pickle('data_s\\snp_simulated1_'+str(i)+'.txt')
+        coef, coef_continuos, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,sim,15,100)
+        #Join CEVAE results
+        cevae = join_simulation(path = 'results\\simulations\\',   version = i, files= ['a','b'])
+        roc_table = roc_table.append(roc,ignore_index=True)
+        #Create dataset
+        data = pd.DataFrame({'cevae':cevae['cate'],'coef':coef,'y_out':tc_sim1_bin, 'coef_c':coef_continuos,'y_c':tc_sim1})
+        #datac = pd.DataFrame({'cevae':cevae['cate'],'coef':coef_continuos,'y_out':tc_sim1_bin})
+        data.to_csv('results\\level1data_sim_'+str(i)+'.txt', sep=';')
+    
+    roc_table.to_pickle('results//'+roc_name+'.txt')

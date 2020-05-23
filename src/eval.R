@@ -6,9 +6,7 @@
 
 rm(list=ls())
 
-RUN_F1_PRECISION_RECALL_SCORE = TRUE
-RUN_CGC_comparison = FALSE
-CREATE_CGC_BASELINES = FALSE
+#RUN_F1_PRECISION_RECALL_SCORE = TRUE
 
 
 require(ggplot2)
@@ -22,7 +20,8 @@ library("openxlsx")
 setwd("~/GitHub/ParKCa/results")
 
 
-if(CREATE_CGC_BASELINES){
+#if(CREATE_CGC_BASELINES){
+CREATE_CGC_BASELINES <- function(){
   #References
   #data downloaded from https://www.pnas.org/content/113/50/14330
   m_2020 = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 1)
@@ -105,29 +104,43 @@ if(CREATE_CGC_BASELINES){
 
 }
 
-RUN_CGC_comparison = TRUE
-if(RUN_CGC_comparison){
+aplication_plots <-function(){
   baselines = read.table('cgc_baselines.txt',header = TRUE, sep=';')
-  experime1 = read.table('eval_metalevel1.txt', header = TRUE, sep = ';')
+  experime1 = read.table('eval_metalevel1c.txt', header = TRUE, sep = ';')
   experime0 = read.table('eval_metalevel0.txt', header = TRUE, sep = ';')
+  names(baselines)[6] = 'f1'
   names(experime1)[2] = names(experime0)[2] = names(baselines)[1]
   baselines$method[baselines$method=='OncodriveClust']='ODC*'
   baselines$method[baselines$method=='ActiveDriver']='AD*'
   baselines$method[baselines$method=='OncodriveFML']='ODFML*'
+  baselines$method[baselines$method=='oncodriveFM']='ODFM*'
   
   
   g1data = rbind(experime0[,c(2,3,4,7)],experime1[,c(2,3,4,7)])
-  g1data$name = c(rep('level 0 learner',dim(experime0)[1]), rep('meta-learner',dim(experime1)[1]))
-  g1data$name[g1data$method=='random']='random'
+  g1data$name = c(rep('Learner',dim(experime0)[1]), rep('Meta-learner',dim(experime1)[1]))
+  g1data$name[g1data$method=='random']='Random'
   
-  
+
+  g0 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
+    geom_point(size=3)+theme_minimal() +
+    scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
+    scale_x_continuous('Precision',limits=c(-0.09,0.7))+
+    scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
+    guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
+    labs(color='',shape='',caption = 'a.Testing Set (level 0 data)')+
+    theme(legend.position = c(0.85,0.8),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=12),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=12))
+    
   g1 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
     geom_point(size=3)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
     scale_x_continuous('Precision',limits=c(-0.09,0.7))+
     scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
     guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
-    labs(color='',shape='',caption = 'b.')+
+    labs(color='',shape='',caption = 'b.Testing Set (level 1 data)')+
     theme(legend.position = c(0.85,0.8),
           legend.background= element_rect(fill="white",colour ="white"),
           legend.text = element_text(size=12),
@@ -135,12 +148,20 @@ if(RUN_CGC_comparison){
           text = element_text(size=12))
 
 
-  
-  g2data = rbind(baselines[,c(1,4,5, 6)],experime1[,c(2,3,4,7)])
+  sub =   experime1[,c(2,8,9,6)]
+  names(sub) = names(baselines)[c(1,4,5, 6)]
+  g2data = rbind(baselines[,c(1,4,5, 6)],sub)
   g2data$name = c(rep('baselines',dim(baselines)[1]), rep('meta-learners',dim(experime1)[1]))
   g2data$name[g2data$method=='random']='random'  
-  g2data$F1 = round(g2data$f1_,2)
+  g2data$F1 = round(g2data$f1,2)
 
+  
+  g2data$method[g2data$method=='rf']= 'RF'
+  g2data$method[g2data$method=='lr']= 'LR'
+  g2data$method[g2data$method=='upu']= 'UPU'
+  g2data$method[g2data$method=='adapter']= 'Adapter'
+  g2data$method[g2data$method=='random']= 'Random'
+  g2data$method[g2data$method=='ensemble']= 'E'
   
   g2 <- ggplot(g2data,aes(x=precision ,y=recall,color=name,shape=name))+
     geom_point(size=3)+theme_minimal() +
@@ -149,7 +170,7 @@ if(RUN_CGC_comparison){
     scale_colour_manual(values = c("#999999", "#56B4E9","#E69F00" )) +
     scale_fill_manual(values = c("#999999", "#56B4E9","#E69F00"))+
     guides(size=FALSE,fill = FALSE, color=guide_legend(override.aes=list(linetype=0)))+
-    labs(color='',shape='',caption = 'c.')+
+    labs(color='',shape='',caption = 'c. Full Set (level 1 data)')+
     geom_label_repel(aes(x=precision,y=recall,size=0.04,fill=name,label=method),
                      box.padding = unit(0.4, "lines"),
                      fontface='bold',color='white',segment.color = 'grey50')+
@@ -167,87 +188,152 @@ if(RUN_CGC_comparison){
     geom_text(aes(label=F1), hjust=1.1, color="white", size=3.5)+
     theme_minimal()+labs(fill='')+
     theme(text = element_text(size=12), 
-          legend.position = c(0.85, 0.9),
+          legend.position = c(0.85, 0.75),
           legend.text = element_text(size=12),
           legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
     scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
     scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
     xlab('')+ylab('F1-score')+coord_flip()+
-    labs(caption = 'd.')
-  grid.arrange(g1,g1,g2,g3, ncol=2)
+    labs(caption = 'd.Full Set (level 1 data)')
+  grid.arrange(g0,g1,g2,g3, ncol=2)
   
 }
 
+require(Rmisc)
+library(reshape2)
 
-dt$model_name[dt$model_name=='Logistic Regression']='LR'
-dt1$model_name[dt1$model_name=='Logistic Regression']='LR'
-dt1 = subset(dt1, !is.na(r))
-dt$model_name = as.character(dt$model_name)
+simulation_plots <-function(){
+  level0 = read.table('eval_sim_metalevel0.txt', sep=';', header = T)
+  level1 = read.table('eval_sim_metalevel1.txt', sep=';', header = T)
+  level1c = read.table('eval_sim_metalevel1c.txt', sep=';', header = T)
+  pehe = read.table('eval_sim_pehe.txt', sep=';', header = T)
+  
+  #NAMES
+  level0$metalearners[level0$metalearners=='cevae'] = 'CEVAE'
+  level0$metalearners[level0$metalearners=='coef'] = 'DA'
+  
+  level1$metalearners[level1$metalearners=='adapter'] = 'Adapter'
+  level1$metalearners[level1$metalearners=='ensemble'] = 'Ensemble'
+  level1$metalearners[level1$metalearners=='lr'] = 'LR'
+  level1$metalearners[level1$metalearners=='random'] = 'Random'
+  level1$metalearners[level1$metalearners=='rf'] = 'RF'
+  level1$metalearners[level1$metalearners=='upu'] = 'UPU'
+  
+  
+  level1c$metalearners[level1c$metalearners=='adapter'] = 'Adapter'
+  level1c$metalearners[level1c$metalearners=='ensemble'] = 'Ensemble'
+  level1c$metalearners[level1c$metalearners=='lr'] = 'LR'
+  level1c$metalearners[level1c$metalearners=='random'] = 'Random'
+  level1c$metalearners[level1c$metalearners=='rf'] = 'RF'
+  level1c$metalearners[level1c$metalearners=='upu'] = 'UPU'
+  
+  #precision x score plot testing 
+  #Save table for Extra Material
+  #AVerage Values 
+  bdg0 = rbind(level0[,c(2,3,4)],level1[,c(2,3,4)])
+  p1a = data.frame(tapply(bdg0$precision,bdg0$metalearners, mean))
+  p1b = data.frame(tapply(bdg0$recall,bdg0$metalearners, mean))
+  p1c = data.frame(tapply(bdg0$precision,bdg0$metalearners, sd))
+  p1d = data.frame(tapply(bdg0$recall,bdg0$metalearners, sd))
+  
+  p1a = data.frame(rownames(p1a),p1a); rownames(p1a)= NULL
+  p1b = data.frame(rownames(p1b),p1b); rownames(p1b)= NULL
+  p1c = data.frame(rownames(p1c),p1c); rownames(p1c)= NULL
+  p1d = data.frame(rownames(p1d),p1d); rownames(p1d)= NULL
+  names(p1a) = c('Method', 'Precision_mean')
+  names(p1b) = c('Method', 'Recall_mean')
+  names(p1c) = c('Method', 'Precision_sd')
+  names(p1d) = c('Method', 'Recall_sd')
+  
+  p1 = merge(merge(merge(p1a,p1b),p1c),p1d)
+  p1$type = 'Meta-Learner'
+  p1$type[p1$Method=='CEVAE'|p1$Method=='DA']='Learner'
+  p1$type[p1$Method=='Random']='Random'
+  
+  #SUPPLEMENTAL MATERIAL SHOULD HAVE IT: 
+  p1
+  
+  g0<-ggplot(p1,aes(x=Precision_mean  ,y=Recall_mean ,color=type,shape=type))+
+    geom_point(size=3)+theme_minimal() +
+    scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
+    scale_x_continuous('Precision',limits=c(-0.09,0.7))+
+    scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
+    guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
+    labs(color='',shape='',caption = 'a.Testing Set (level 1 data)')+
+    theme(legend.position = c(0.85,0.8),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=12),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=12))
+  
+  
+  #similar to other f1 score plot full set 
+  #SAve table to other table 
 
-#just points
-pr1<- ggplot(dt,aes(x=p,y=r,color=model_name,shape=model_name))+
-  geom_point()+theme_minimal() +
-  scale_y_continuous('Recall',limits=c(-0.09,1.05))+
-  scale_x_continuous('Precision',limits = c(-0.09,1.05))+
-  scale_shape_manual(values = c(23, 21, 24,8,12,22)) +
-  scale_color_manual(values = c("#00AFBB", "#DB7093", "#FC4E07",'#B0C4DE','#E7B800','#3cb371'))+#'#9370db'
-  guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
-  labs(color='',shape='',caption = 'e. Testing Set')+
-  theme(legend.position = c(0.8,0.75),
-        legend.background= element_rect(fill="white",colour ="white"),
-        legend.text = element_text(size=9),
-        legend.key.size = unit(0.5,'cm'),
-        plot.caption = element_text(size=10))
+  
+  aux = rbind(level1[,c(2,6,7)], level0[,c(2,6,7)])
+  level1_s <- melt(aux, id.vars = c("metalearners"))
+  level1_s = summarySE(level1_s, measurevar="value", groupvars=c("variable","metalearners"))
 
+  level1_s$type = 'Meta-Learner'
+  level1_s$type[level1_s$metalearners =='CEVAE'|level1_s$metalearners =='DA']='Learner'
+  level1_s$type[level1_s$metalearners =='Random']='Random'
+  
+  level1_s$F1 = as.character(round(level1_s$value,2))
+  level1_s = level1_s[order(level1_s$value,decreasing=TRUE),]
+  level1_s <- within(level1_s, metalearners<-factor( metalearners,levels= unique(level1_s$metalearners))) 
+  
+  
+  level1_s_testing = subset(level1_s, variable=='f1_')
+  level1_s_full = subset(level1_s, variable=='f1')
+  
 
+  g1<- ggplot(level1_s_testing,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
+    geom_text(aes(label=F1,y=0.015), hjust=1.1, color="white", size=3.5)+
+    geom_errorbar(aes(ymin=value-se, ymax=value+se),
+                  width=.2, position=position_dodge(.9))+
+    theme_minimal()+labs(fill='')+
+    theme(text = element_text(size=12), 
+          legend.position = c(0.85, 0.75),
+          legend.text = element_text(size=12),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    xlab('')+ylab('F1-score')+coord_flip()+
+    labs(caption = 'b.Testing Set Average (level 1 data)')
+  
+  g2<-ggplot(level1_s_full,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
+    geom_text(aes(label=F1,y=0.02), hjust=1.1, color="white", size=3.5)+
+    geom_errorbar(aes(ymin=value-se, ymax=value+se),
+                  width=.2, position=position_dodge(.9))+
+    theme_minimal()+labs(fill='')+
+    theme(text = element_text(size=12), 
+          legend.position = c(0.85, 0.75),
+          legend.text = element_text(size=12),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    xlab('')+ylab('F1-score')+coord_flip()+
+    labs(caption = 'c.Full Set Average (level 1 data)')
+  
+  
+  pehe2 <- melt(pehe[,c(2,3,4,5)], id.vars = c("method"))
+  pehe_s <- summarySE(pehe2, measurevar="value", groupvars=c("variable","method"))
+  
+  
+  
+  aux = rbind(level1c[,c(2,6,7)], level0[,c(2,6,7)])
+  level1c_s <- melt(aux, id.vars = c("metalearners"))
+  level1c_s = summarySE(level1c_s, measurevar="value", groupvars=c("variable","metalearners"))
+  
 
-baselines = read.table('~\\Documents\\GitHub\\project\\results\\cgc_baselines.txt',
-                       header = TRUE, sep=';')
-baselines = baselines[,-c(2,3)]
-names(baselines) = c('Model','Precision','Recall','F1')
-baselines$Type='Baseline'
-dt2 = subset(dt1, select=c(model_name,p_,r_,f1_))
-dt2$Type='New'
-names(dt2)=names(baselines)
-baselines = rbind(baselines,dt2)
-baselines$Type[baselines$Model=='Random']='Random'
-
-ggplot(baselines,aes(Precision,Recall,size=F1,color=Type))+
-  geom_point()+guides(size=FALSE)+theme_minimal()+
-  scale_y_continuous(limits=c(0,1))+
-  scale_x_continuous(limits=c(0,1))+
-  scale_color_manual(values = c("#9baec7", "#00AFBB", "#FC4E07"))+
-  theme(legend.position = c(0.8,0.85),
-        legend.background= element_rect(fill="white",colour ="white"))+
-  geom_text_repel(baselines[baselines$Type=='New',],mapping=aes(x=Precision,y=Recall,size=0.2,label=Model,color=Type),
-                  box.padding = unit(0.5, "lines"),
-                  point.padding = unit(0.5, "lines"))
-
-ggplot(baselines,aes(Precision,Recall,color=Type),size=2)+
-  geom_point()+guides(size=FALSE,color=FALSE,fill=FALSE)+theme_minimal()+
-  scale_y_continuous(limits=c(0,1))+
-  scale_x_continuous(limits=c(0,1))+
-  theme(legend.position = c(0.8,0.85),
-        legend.background= element_rect(fill="white",colour ="white"))+
-  scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
-  scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
-  geom_label_repel(aes(x=Precision,y=Recall,size=0.04,fill=Type,label=Model),
-                  box.padding = unit(0.4, "lines"),
-                  fontface='bold',color='white',segment.color = 'grey50')
-
-
-baselines$F1 = round(baselines$F1,2)
-baselines$Model = as.character(baselines$Model)
-baselines = baselines[order(baselines$F1,decreasing=TRUE),]
-baselines <- within(baselines,Model<-factor(Model,levels=baselines$Model))
-
-baselines$Type=as.character(baselines$Type)
-baselines$Type[baselines$Type=='New'] = 'ParKCa'
-ggplot(baselines,aes(Model,F1,fill=Type))+geom_bar(stat='identity')+
-  geom_text(aes(label=F1), hjust=1.1, color="white", size=3.5)+
-  theme_minimal()+labs(fill='')+
-  theme(legend.position = c(0.8, 0.9),
-        legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
-  scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
-  scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
-  xlab('')+ylab('F1-score')+coord_flip()
+  
+  #TABLE MAYBE, different scales 
+  ggplot(pehe_s, aes(x=variable, y=value, fill=method)) + 
+    geom_bar(position=position_dodge(), stat="identity") +
+    geom_errorbar(aes(ymin=value-se, ymax=value+se),
+                  width=.2, position=position_dodge(.9))+
+    theme(legend.position="top")
+  
+  grid.arrange(g1,g2, ncol=2)
+}
