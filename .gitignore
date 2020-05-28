@@ -3,6 +3,8 @@ data/
 data_s/
 __pycache__/
 plots_cevae/
+results/simulations/
+results/
 
 .Rhistory
 .rds
