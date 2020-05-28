@@ -13,7 +13,7 @@ setwd("~/GitHub/ParKCa/data_s")
 
 source_python("pickle_reader.py")
 sdata <- read_pickle_file("snp_simulated1_1.txt")
- <- read_pickle_file("snp_simulated1_y01.txt")[,2]
+sy01 <- read_pickle_file("snp_simulated1_y01.txt")[,2]
 
 
 #testing set
@@ -25,16 +25,14 @@ times = c()
 ptm <- proc.time()
 #SOURCE#https://cran.r-project.org/web/packages/pcalg/vignettes/pcalgDoc.pdf
 #ESTIMATE CAUSAL STRUCTURE
-suffStat <- list(C = cor(gmG8$x), n = nrow(gmG8$x))
-pc.gmG <- pc(suffStat, indepTest = gaussCItest, p = ncol(gmG8$x), alpha = 0.01)
-idaFast(causal, target, cov(gmG8$x), pc.gmG@graph)
+suffStat <- list(C = cor(train), n = nrow(train))
+pc.gmG <- rfci(suffStat, indepTest = gaussCItest, p = ncol(train), alpha = 0.01)
+causal = c(2:dim(train)[2])
+targe = 1
+idaFast(causal, target, cov(train), pc.gmG@graph)
 
 
-
-suffStat = list(C = cor(bd), n = nrow(bd))
-  model = rfci(suffStat, indepTest = gaussCItest, alpha = 0.01, m.max = 10, numCores = 3, skel.method = "stable.fast",
-               conservative = FALSE, labels = names(bd))  
-  aux = proc.time() - ptm
+aux = proc.time() - ptm
   
   
   
