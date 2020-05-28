@@ -10,7 +10,6 @@ from os import listdir
 from os.path import isfile, join
 
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
 from sklearn import svm
 from sklearn.decomposition import NMF, PCA
 from sklearn.ensemble import RandomForestClassifier
@@ -476,7 +475,7 @@ def recall(label, confusion_matrix):
     row = confusion_matrix[label, :]
     return confusion_matrix[label, label] / row.sum()
 
-def meta_learner(data1, models):
+def meta_learner(data1, models, prob ):
     '''
     input: level 1 data
     outout:
@@ -488,11 +487,15 @@ def meta_learner(data1, models):
     y = data1['y_out']
     X = data1.drop(['y_out'], axis=1)
     y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
-
+    
     #starting ensemble
     e_full = np.zeros(len(y))
     e_pred = np.zeros(len(y_test))
     e = 0
+
+    #Some causes are unknown or labeled as 0
+    y_train = [i if np.random.binomial(1,prob,1)[0]==1 else 0 for i in y_train]        
+    y_train = pd.Series(y_train)
 
     for m in models:
         roc, yfull, y_pred = classification_models(y_train, y_test, X_train, X_test,m)

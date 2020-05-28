@@ -16,7 +16,9 @@ require(readxl)
 require(plotROC)
 require(gridExtra)
 library("openxlsx")
-
+require("reticulate")
+require(Rmisc)
+library(reshape2)
 setwd("~/GitHub/ParKCa/results")
 
 
@@ -105,36 +107,97 @@ CREATE_CGC_BASELINES <- function(){
 }
 
 aplication_plots <-function(){
+  
+  source_python("pickle_reader.py")
+  roc_da <- read_pickle_file('roc_15_beforefilter.txt')
+  roc_bart <- read_pickle_file('roc_bart.txt')
+  
+  #aux = roc_da[[2]][1] #column, row
+  i = 1 #from 1 to 10
+  data = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+  names(data) = c('fpr','tpr')
+  data$sim = roc_da[[1]][i]
+  data$Learner = 'DA'
+  data$auc = roc_da[[4]][i]
+  
+  for( i in 2:9){
+    aux = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+    names(aux)=  c('fpr','tpr')
+    aux$Learner = 'DA'
+    aux$sim = roc_da[[1]][i]
+    aux$auc = roc_da[[4]][i]
+    data = rbind(data,aux)
+  }
+  
+  for( i in 1:3){
+    aux = data.frame(roc_bart[[2]][i][[1]],roc_bart[[3]][i][[1]])
+    names(aux)=  c('fpr','tpr')
+    aux$Learner = 'BART'
+    aux$sim = roc_bart[[1]][i]
+    aux$auc = roc_bart[[4]][i]
+    data = rbind(data,aux)
+  }
+  
+  data$sim = gsub('dappcalr_15_','DA+',data$sim)
+  data$sim = gsub('bart_','BART+',data$sim)
+  
+  #data$sim = paste(data$sim,'(AUC=',round(data$auc,1),')',sep='')
+  
+  #type 
+  data$type = 'Final Learners'
+  data$type[data$sim=='DA+LIHC'] = 'Eliminated Learners'
+  data$type[data$sim=='DA+ESCA'] = 'Eliminated Learners'
+  data$type[data$sim=='DA+PAAD'] = 'Eliminated Learners'
+  data$type[data$sim=='DA+SARC'] = 'Eliminated Learners'
+  
+  
+  
+  g0<- ggplot(data=data, aes(x=fpr, y=tpr, group=sim, col = type)) +
+    geom_line(aes(linetype=type),size=1)+xlim(0,1)+ylim(0,1)+
+    scale_color_manual(values = c("#999999",'#009E73'))+
+    scale_linetype_manual(values=c('dashed','dotted'))+
+    geom_abline(intercept = 0, slope = 1, color="#000000", linetype="solid")+
+    theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+    #labs(caption = 'a. Test set (level 0 data)')+
+    guides(col = guide_legend(ncol =1),linetype =guide_legend(ncol =1))+
+    theme(legend.position = c(0.75,0.2),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=13),
+          legend.key.size = unit(0.3,'cm'),
+          text = element_text(size=13))+
+    labs(color='',linetype='')
+  
   baselines = read.table('cgc_baselines.txt',header = TRUE, sep=';')
   experime1 = read.table('eval_metalevel1c.txt', header = TRUE, sep = ';')
   experime0 = read.table('eval_metalevel0.txt', header = TRUE, sep = ';')
   names(baselines)[6] = 'f1'
   names(experime1)[2] = names(experime0)[2] = names(baselines)[1]
-  baselines$method[baselines$method=='OncodriveClust']='ODC*'
-  baselines$method[baselines$method=='ActiveDriver']='AD*'
-  baselines$method[baselines$method=='OncodriveFML']='ODFML*'
-  baselines$method[baselines$method=='oncodriveFM']='ODFM*'
+  baselines$method[baselines$method=='OncodriveClust']='ODC'
+  baselines$method[baselines$method=='ActiveDriver']='AD'
+  baselines$method[baselines$method=='OncodriveFML']='ODFML'
+  baselines$method[baselines$method=='oncodriveFM']='ODFM'
+  baselines$method[baselines$method=='MuSiC']='M'
   
   
   g1data = rbind(experime0[,c(2,3,4,7)],experime1[,c(2,3,4,7)])
-  g1data$name = c(rep('Learner',dim(experime0)[1]), rep('Meta-learner',dim(experime1)[1]))
+  g1data$name = c(rep('Learner',dim(experime0)[1]), rep('ParKCa',dim(experime1)[1]))
   g1data$name[g1data$method=='random']='Random'
   
 
-  g0 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
+  g1 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
     geom_point(size=3)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
-    scale_x_continuous('Precision',limits=c(-0.09,0.7))+
+    scale_x_continuous('Precision',limits=c(0,0.4))+
     scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
     guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
-    labs(color='',shape='',caption = 'a.Testing Set (level 0 data)')+
+    labs(color='',shape='')+ #,caption = 'b.Testing Set (level 0 data)'
     theme(legend.position = c(0.85,0.8),
           legend.background= element_rect(fill="white",colour ="white"),
-          legend.text = element_text(size=12),
+          legend.text = element_text(size=13),
           legend.key.size = unit(0.7,'cm'),
-          text = element_text(size=12))
+          text = element_text(size=13))
     
-  g1 <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
+  g0b <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
     geom_point(size=3)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
     scale_x_continuous('Precision',limits=c(-0.09,0.7))+
@@ -143,9 +206,9 @@ aplication_plots <-function(){
     labs(color='',shape='',caption = 'b.Testing Set (level 1 data)')+
     theme(legend.position = c(0.85,0.8),
           legend.background= element_rect(fill="white",colour ="white"),
-          legend.text = element_text(size=12),
+          legend.text = element_text(size=13),
           legend.key.size = unit(0.7,'cm'),
-          text = element_text(size=12))
+          text = element_text(size=13))
 
 
   sub =   experime1[,c(2,8,9,6)]
@@ -163,6 +226,10 @@ aplication_plots <-function(){
   g2data$method[g2data$method=='random']= 'Random'
   g2data$method[g2data$method=='ensemble']= 'E'
   
+  g2data$name[g2data$name=='meta-learners']='ParKCa'
+  g2data$name[g2data$name=='baselines']='Baselines'
+  g2data$name[g2data$name=='random']='Random'
+  
   g2 <- ggplot(g2data,aes(x=precision ,y=recall,color=name,shape=name))+
     geom_point(size=3)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
@@ -170,39 +237,100 @@ aplication_plots <-function(){
     scale_colour_manual(values = c("#999999", "#56B4E9","#E69F00" )) +
     scale_fill_manual(values = c("#999999", "#56B4E9","#E69F00"))+
     guides(size=FALSE,fill = FALSE, color=guide_legend(override.aes=list(linetype=0)))+
-    labs(color='',shape='',caption = 'c. Full Set (level 1 data)')+
+    labs(color='',shape='')+ #,caption = 'c. Full Set (level 1 data)'
     geom_label_repel(aes(x=precision,y=recall,size=0.04,fill=name,label=method),
                      box.padding = unit(0.4, "lines"),
                      fontface='bold',color='white',segment.color = 'grey50')+
     theme(legend.position = c(0.85,0.8),
           legend.background= element_rect(fill="white",colour ="white"),
-          legend.text = element_text(size=12),
+          legend.text = element_text(size=13),
           legend.key.size = unit(0.7,'cm'),
-          text = element_text(size=12))
+          text = element_text(size=13),
+          legend.margin = margin(-0.5,0,0,0, unit="cm"))
    
+  
+ # g2data$method[g2data$method=='RF']='Random Forest(RF)'
+#  g2data$method[g2data$method=='LR']='Logistic Regression(LR)'
+#  g2data$method[g2data$method=='ODFML']='OncodriveFML(ODFML)'
+#  g2data$method[g2data$method=='Adapter']='Adapter-PU'
+#  g2data$method[g2data$method=='M']='MuSiC (M)'
+#  g2data$method[g2data$method=='E']='Ensemble (E)'
+#  g2data$method[g2data$method=='AD']='ActiveDriver (AD)'
+#  g2data$method[g2data$method=='ODC']='OncodriveClust (ODC)'
+#  g2data$method[g2data$method=='ODFM']='OncoDriveFM (ODFM)'
+  
   
   g2data = g2data[order(g2data$F1,decreasing=TRUE),]
   g2data <- within(g2data,method<-factor(method,levels=g2data$method)) 
   
+  
   g3<- ggplot(g2data,aes(method,F1,fill=name))+geom_bar(stat='identity')+
-    geom_text(aes(label=F1), hjust=1.1, color="white", size=3.5)+
+    #geom_text(aes(label=F1), hjust=1.1, color="white", size=3.5)+
     theme_minimal()+labs(fill='')+
-    theme(text = element_text(size=12), 
-          legend.position = c(0.85, 0.75),
-          legend.text = element_text(size=12),
-          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    theme(text = element_text(size=13), 
+          legend.position = c(0.8, 0.8),
+          legend.text = element_text(size=13),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'),
+          legend.margin = margin(-0.5,0,0,0, unit="cm"))+
     scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
     scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
-    xlab('')+ylab('F1-score')+coord_flip()+
-    labs(caption = 'd.Full Set (level 1 data)')
+    xlab('')+ylab('F1-score')+coord_flip()
+    #labs(caption = 'd.Full Set (level 1 data)')
+  
   grid.arrange(g0,g1,g2,g3, ncol=2)
   
 }
 
-require(Rmisc)
-library(reshape2)
+aplication_plots()
+
+
 
 simulation_plots <-function(){
+  
+  source_python("pickle_reader.py")
+  roc_da <- read_pickle_file('sim_roc_simulations.txt')
+  roc_cevae <- read_pickle_file('roc_cevae.txt')
+  
+  #aux = roc_da[[2]][1] #column, row
+  i = 1 #from 1 to 10
+  data = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+  names(data) = c('fpr','tpr')
+  data$sim = paste(i,'da',sep='')
+  data$Learner = 'DA'
+  
+  for( i in 2:10){
+    aux = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+    names(aux)=  c('fpr','tpr')
+    aux$Learner = 'DA'
+    aux$sim = paste(i,'da',sep='')
+    data = rbind(data,aux)
+  }
+  
+  for( i in 1:10){
+    aux = data.frame(roc_cevae[[2]][i][[1]],roc_cevae[[3]][i][[1]])
+    names(aux)=  c('fpr','tpr')
+    aux$Learner = 'CEVAE'
+    aux$sim = paste(i,'cevae',sep='')
+    data = rbind(data,aux)
+  }
+  
+  
+  g0<- ggplot(data=data, aes(x=fpr, y=tpr, group=sim, col = Learner)) +
+    geom_line(aes(linetype=Learner))+xlim(0,1)+ylim(0,1)+
+    scale_color_manual(values = c("#999999", "#FC4E07"))+
+    scale_linetype_manual(values=c('solid','dashed'))+
+    geom_abline(intercept = 0, slope = 1, color="#E69F00", 
+                linetype="solid")+
+    theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+    labs(caption = 'a. Test set (level 0 data)')+
+    theme(legend.position = c(0.8,0.3),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=13),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=13))
+  
+  
+  
   level0 = read.table('eval_sim_metalevel0.txt', sep=';', header = T)
   level1 = read.table('eval_sim_metalevel1.txt', sep=';', header = T)
   level1c = read.table('eval_sim_metalevel1c.txt', sep=';', header = T)
@@ -253,25 +381,25 @@ simulation_plots <-function(){
   #SUPPLEMENTAL MATERIAL SHOULD HAVE IT: 
   p1
   
-  g0<-ggplot(p1,aes(x=Precision_mean  ,y=Recall_mean ,color=type,shape=type))+
+  g1<-ggplot(p1,aes(x=Precision_mean  ,y=Recall_mean ,color=type,shape=type))+
     geom_point(size=3)+theme_minimal() +
     scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
     scale_x_continuous('Precision',limits=c(-0.09,0.7))+
     scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
     guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
-    labs(color='',shape='',caption = 'a.Testing Set (level 1 data)')+
+    labs(color='',shape='',caption = 'b.Testing Set (level 1 data)')+
     theme(legend.position = c(0.85,0.8),
           legend.background= element_rect(fill="white",colour ="white"),
-          legend.text = element_text(size=12),
+          legend.text = element_text(size=13),
           legend.key.size = unit(0.7,'cm'),
-          text = element_text(size=12))
+          text = element_text(size=13))
   
   
   #similar to other f1 score plot full set 
   #SAve table to other table 
 
   
-  aux = rbind(level1[,c(2,6,7)], level0[,c(2,6,7)])
+  aux = rbind(level1[,c(2,7)], level0[,c(2,7)])
   level1_s <- melt(aux, id.vars = c("metalearners"))
   level1_s = summarySE(level1_s, measurevar="value", groupvars=c("variable","metalearners"))
 
@@ -285,55 +413,279 @@ simulation_plots <-function(){
   
   
   level1_s_testing = subset(level1_s, variable=='f1_')
-  level1_s_full = subset(level1_s, variable=='f1')
+  #level1_s_full = subset(level1_s, variable=='f1')
   
 
-  g1<- ggplot(level1_s_testing,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
-    geom_text(aes(label=F1,y=0.015), hjust=1.1, color="white", size=3.5)+
-    geom_errorbar(aes(ymin=value-se, ymax=value+se),
-                  width=.2, position=position_dodge(.9))+
-    theme_minimal()+labs(fill='')+
-    theme(text = element_text(size=12), 
-          legend.position = c(0.85, 0.75),
-          legend.text = element_text(size=12),
-          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
-    scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
-    scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
-    xlab('')+ylab('F1-score')+coord_flip()+
-    labs(caption = 'b.Testing Set Average (level 1 data)')
-  
-  g2<-ggplot(level1_s_full,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
+  g2<- ggplot(level1_s_testing,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
     geom_text(aes(label=F1,y=0.02), hjust=1.1, color="white", size=3.5)+
-    geom_errorbar(aes(ymin=value-se, ymax=value+se),
+    geom_errorbar(aes(ymin=value-sd, ymax=value+sd),
                   width=.2, position=position_dodge(.9))+
-    theme_minimal()+labs(fill='')+
-    theme(text = element_text(size=12), 
-          legend.position = c(0.85, 0.75),
-          legend.text = element_text(size=12),
+    theme_minimal()+labs(fill='')+ylim(0,0.25)+
+    theme(text = element_text(size=13), 
+          legend.position = c(0.85, 0.83),
+          legend.text = element_text(size=13),
           legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
     scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
     scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
     xlab('')+ylab('F1-score')+coord_flip()+
-    labs(caption = 'c.Full Set Average (level 1 data)')
+    labs(caption = 'c.Testing Set (level 1 data)')
+  
+  g2b<-ggplot(level1_s_full,aes( metalearners,value,fill=type))+geom_bar(stat='identity')+
+    geom_text(aes(label=F1,y=0.02), hjust=1.1, color="white", size=3.5)+
+    geom_errorbar(aes(ymin=value-sd, ymax=value+sd),
+                  width=.2, position=position_dodge(.9))+
+    theme_minimal()+labs(fill='')+
+    theme(text = element_text(size=13), 
+          legend.position = c(0.85, 0.75),
+          legend.text = element_text(size=13),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
+    xlab('')+ylab('F1-score')+coord_flip()+
+    labs(caption = 'd.Full Set (level 1 data)')
   
   
   pehe2 <- melt(pehe[,c(2,3,4,5)], id.vars = c("method"))
+  pehe2$variable = as.character(pehe2$variable)
+  pehe2$variable[pehe2$variable=='pehe_noncausal'] = 'Non-causal Variables'
+  pehe2$variable[pehe2$variable=='pehe_causal'] = 'Causal Variables'
+  pehe2$variable[pehe2$variable=='pehe_overall'] = 'Overall'
   pehe_s <- summarySE(pehe2, measurevar="value", groupvars=c("variable","method"))
   
+  pehe_s = subset(pehe_s, method!='Meta-learner (Full set)')
+  pehe_s$method[pehe_s$method=='Meta-learner (Testing set)'] = 'Meta-learner'  
+  pehe_s = subset(pehe_s, variable != 'Non-causal Variables')
+  #aux = rbind(level1c[,c(2,6,7)], level0[,c(2,6,7)])
+  #level1c_s <- melt(aux, id.vars = c("metalearners"))
+  #level1c_s = summarySE(level1c_s, measurevar="value", groupvars=c("variable","metalearners"))
+  
+  #violin is an option
+
+  #TABLE MAYBE, different scales
+  g3<- ggplot(pehe_s, aes( x = method, y=value, fill = method)) + 
+    geom_bar(position=position_dodge(), stat="identity") +
+    geom_errorbar(aes(ymin=value-sd, ymax=value+sd),
+                  width=.2, position=position_dodge(.9))+
+    scale_fill_manual(values = c("#999999","#999999",'#56B4E9'))+
+    theme(legend.position="top")+facet_wrap(~variable, scale="free")+
+    xlab('')+ylab('PEHE')+guides(fill = FALSE)+
+    theme_minimal()+
+    labs(caption = 'd. Test set (level 1 data)')+
+    theme(text = element_text(size=13), 
+          legend.position = c(0.85, 0.75),
+          legend.text = element_text(size=13),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))
+    
   
   
-  aux = rbind(level1c[,c(2,6,7)], level0[,c(2,6,7)])
-  level1c_s <- melt(aux, id.vars = c("metalearners"))
-  level1c_s = summarySE(level1c_s, measurevar="value", groupvars=c("variable","metalearners"))
+  grid.arrange(g0, g1,g2,g3, ncol=2)
+}
+
+
+
+simulation_plots()
+
+
+simulation_plots2 <-function(){
   
+  source_python("pickle_reader.py")
+  roc_da <- read_pickle_file('sim_roc_simulations.txt')
+  roc_cevae <- read_pickle_file('roc_cevae.txt')
+  
+  #aux = roc_da[[2]][1] #column, row
+  i = 1 #from 1 to 10
+  data = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+  names(data) = c('fpr','tpr')
+  data$sim = paste(i,'da',sep='')
+  data$Learner = 'DA'
+  
+  for( i in 2:10){
+    aux = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+    names(aux)=  c('fpr','tpr')
+    aux$Learner = 'DA'
+    aux$sim = paste(i,'da',sep='')
+    data = rbind(data,aux)
+  }
+  
+  for( i in 1:10){
+    aux = data.frame(roc_cevae[[2]][i][[1]],roc_cevae[[3]][i][[1]])
+    names(aux)=  c('fpr','tpr')
+    aux$Learner = 'CEVAE'
+    aux$sim = paste(i,'cevae',sep='')
+    data = rbind(data,aux)
+  }
+  
+  
+  g0<- ggplot(data=data, aes(x=fpr, y=tpr, group=sim, col = Learner)) +
+    geom_line(aes(linetype=Learner))+xlim(0,1)+ylim(0,1)+
+    scale_color_manual(values = c("#009E73", "#009E73"))+
+    scale_linetype_manual(values=c('dotted','dashed'))+
+    geom_abline(intercept = 0, slope = 1, color="#000000", 
+                linetype="solid")+
+    theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+    theme(legend.position = c(0.85,0.3),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=13),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=13))
+  
+  
+  
+  level0 = read.table('eval_sim_metalevel0_prob.txt', sep=';', header = T)
+  level1 = read.table('eval_sim_metalevel1_prob.txt', sep=';', header = T)
+  level1c = read.table('eval_sim_metalevel1c_prob.txt', sep=';', header = T)
+  pehe = read.table('eval_sim_pehe_prob.txt', sep=';', header = T)
+  
+  #NAMES
+  level0$metalearners[level0$metalearners=='cevae'] = 'CEVAE'
+  level0$metalearners[level0$metalearners=='coef'] = 'DA'
+  
+  level1$metalearners[level1$metalearners=='adapter'] = 'Adapter'
+  level1$metalearners[level1$metalearners=='ensemble'] = 'Ensemble'
+  level1$metalearners[level1$metalearners=='lr'] = 'LR'
+  level1$metalearners[level1$metalearners=='random'] = 'Random'
+  level1$metalearners[level1$metalearners=='rf'] = 'RF'
+  level1$metalearners[level1$metalearners=='upu'] = 'UPU'
+  
+  
+  level1c$metalearners[level1c$metalearners=='adapter'] = 'Adapter'
+  level1c$metalearners[level1c$metalearners=='ensemble'] = 'Ensemble'
+  level1c$metalearners[level1c$metalearners=='lr'] = 'LR'
+  level1c$metalearners[level1c$metalearners=='random'] = 'Random'
+  level1c$metalearners[level1c$metalearners=='rf'] = 'RF'
+  level1c$metalearners[level1c$metalearners=='upu'] = 'UPU'
+  
+  #precision x score plot testing 
+  #AVerage Values 
+  bdg0 = rbind(level0[,c(2,3,4)],level1[,c(2,3,4)])
+  p1a = data.frame(tapply(bdg0$precision,bdg0$metalearners, mean))
+  p1b = data.frame(tapply(bdg0$recall,bdg0$metalearners, mean))
+  p1c = data.frame(tapply(bdg0$precision,bdg0$metalearners, sd))
+  p1d = data.frame(tapply(bdg0$recall,bdg0$metalearners, sd))
+  
+  p1a = data.frame(rownames(p1a),p1a); rownames(p1a)= NULL
+  p1b = data.frame(rownames(p1b),p1b); rownames(p1b)= NULL
+  p1c = data.frame(rownames(p1c),p1c); rownames(p1c)= NULL
+  p1d = data.frame(rownames(p1d),p1d); rownames(p1d)= NULL
+  names(p1a) = c('Method', 'Precision_mean')
+  names(p1b) = c('Method', 'Recall_mean')
+  names(p1c) = c('Method', 'Precision_sd')
+  names(p1d) = c('Method', 'Recall_sd')
+  
+  p1 = merge(merge(merge(p1a,p1b),p1c),p1d)
+  p1$type = 'ParCKa'
+  p1$type[p1$Method=='CEVAE'|p1$Method=='DA']='Learner'
+  p1$type[p1$Method=='Random']='Random'
+  
+  #SUPPLEMENTAL MATERIAL SHOULD HAVE IT: 
+  p1
+  
+  g1<-ggplot(p1,aes(x=Precision_mean  ,y=Recall_mean ,color=type,shape=type))+
+    geom_point(size=3)+theme_minimal() +
+    scale_y_continuous('Recall',limits=c(-0.09,1.05))+ #,limits=c(-0.09,1.05)
+    scale_x_continuous('Precision',limits=c(0,0.3))+
+    scale_colour_manual(values = c("#FC4E07", "#56B4E9","#E69F00" )) + #00AFBB blue  '#9370db'(purple) '#B0C4DE'(grey),'#E7B800'(yello),'#3cb371'(green) #DB7093 (pink)
+    guides(size=FALSE,color=guide_legend(override.aes=list(linetype=0)))+
+    labs(color='',shape='')+ #,caption = 'b.Testing Set (level 1 data)'
+    theme(legend.position = c(0.8,0.8),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=13),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=13))
+  
+  
+  #similar to other f1 score plot full set 
+  #SAve table to other table 
+  
+  
+  aux = rbind(level1[,c(2,7,11)], level0[,c(2,7,9)])
+  level1_s <- melt(aux, id.vars = c("metalearners",'prob'))
+  level1_s = summarySE(level1_s, measurevar="value", groupvars=c("variable","metalearners",'prob'))
+  
+  level1_s$type = 'Meta-Learner'
+  level1_s$type[level1_s$metalearners =='CEVAE'|level1_s$metalearners =='DA']='Learner'
+  level1_s$type[level1_s$metalearners =='Random']='Random'
+  
+  level1_s$F1 = as.character(round(level1_s$value,2))
+  level1_s = level1_s[order(level1_s$value,decreasing=TRUE),]
+  level1_s <- within(level1_s, metalearners<-factor( metalearners,levels= unique(level1_s$metalearners))) 
+  
+  
+  level1_s_testing = subset(level1_s, variable=='f1_')
+  #level1_s_full = subset(level1_s, variable=='f1')
+  
+  
+  
+    
+  g2<- ggplot(level1_s_testing,aes(x = prob, y =value,color=metalearners, shape = metalearners))+
+    geom_line(size=1) + geom_point(size=2.5)+ 
+    theme_minimal()+labs(fill='')+
+    guides(col =  guide_legend(ncol =3),shape = guide_legend(ncol = 3))+
+    theme(text = element_text(size=13), 
+          legend.position = c(0.6, 0.2),
+          legend.text = element_text(size=11),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'),
+          legend.margin = margin(-0.5,0,0,0, unit="cm"))+
+    scale_color_manual(values = c("#56B4E9",'#56B4E9',"#56B4E9","#56B4E9",'#56B4E9',"#E69F00",'#E69F00',"#999999"))+
+    scale_shape_manual(values=c(15,16,17,18,4,8,9,6))+
+    xlab('Proportion of known causes')+ylab('F1-score')+
+    labs(color='',shape='')
 
   
-  #TABLE MAYBE, different scales 
-  ggplot(pehe_s, aes(x=variable, y=value, fill=method)) + 
-    geom_bar(position=position_dodge(), stat="identity") +
-    geom_errorbar(aes(ymin=value-se, ymax=value+se),
-                  width=.2, position=position_dodge(.9))+
-    theme(legend.position="top")
   
-  grid.arrange(g1,g2, ncol=2)
+  pehe2 <- melt(pehe[,c(2,3,4,5,7)], id.vars = c("method",'prob'))
+  pehe2$variable = as.character(pehe2$variable)
+  pehe2$variable[pehe2$variable=='pehe_noncausal'] = 'Non-causal Variables'
+  pehe2$variable[pehe2$variable=='pehe_causal'] = 'Causal Variables'
+  pehe2$variable[pehe2$variable=='pehe_overall'] = 'Overall'
+  pehe_s <- summarySE(pehe2, measurevar="value", groupvars=c("variable","method",'prob'))
+  
+  pehe_s = subset(pehe_s, method!='Meta-learner (Full set)')
+  pehe_s$method[pehe_s$method=='Meta-learner (Testing set)'] = 'ParKCa'  
+  pehe_s = subset(pehe_s, variable != 'Non-causal Variables')
+  #aux = rbind(level1c[,c(2,6,7)], level0[,c(2,6,7)])
+  #level1c_s <- melt(aux, id.vars = c("metalearners"))
+  #level1c_s = summarySE(level1c_s, measurevar="value", groupvars=c("variable","metalearners"))
+  
+  #violin is an option
+  
+  #TABLE MAYBE, different scales
+  pehe_s_causal = subset(pehe_s, variable=='Causal Variables' )
+  g3<- ggplot(pehe_s_causal,aes(x = prob, y =value,color=method, shape = method))+
+    geom_line(size=1) + geom_point(size=2.5)+ 
+    theme_minimal()+labs(fill='')+xlim(c(0,1))+
+    guides(col =  guide_legend(ncol = 1),shape = guide_legend(ncol = 1))+
+    theme(text = element_text(size=13), 
+          legend.position = c(0.15,0.2),
+          legend.text = element_text(size=13),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'),
+          legend.margin = margin(-0.5,0,0,0, unit="cm"))+
+    scale_color_manual(values = c("#E69F00",'#E69F00',"#56B4E9"))+
+    scale_shape_manual(values=c(15,16,17))+
+    xlab('Proportion of known causes')+ylab('PEHE - Causal Variables')+
+    labs(color='',shape='')
+
+  pehe_s_causal = subset(pehe_s, variable!='Causal Variables' )
+  
+  g4<- ggplot(pehe_s_causal,aes(x = prob, y =value,color=method, shape = method))+
+    geom_line(size=1) + geom_point(size=2.5)+ 
+    theme_minimal()+labs(fill='')+
+    guides(col =  FALSE,shape = FALSE)+
+    theme(text = element_text(size=13), 
+          legend.position = c(0.6, 0.2),
+          legend.text = element_text(size=13),
+          legend.background = element_rect(fill = 'white',linetype='solid',colour='white'))+
+    scale_color_manual(values = c("#E69F00",'#E69F00',"#56B4E9"))+
+    scale_shape_manual(values=c(15,16,17))+
+    xlab('Proportion of known causes')+ylab('PEHE - All Variables')+
+    labs(color='',shape='',caption = 'c.Testing Set (level 1 data)')
+  
+  
+  grid.arrange(g0,g2,g3,g4, ncol=2)
 }
+
+
+
+simulation_plots2()
+
+

@@ -71,8 +71,8 @@ if EVALUATION_A:
                         data1)
     print('DIVERSITY: ', qav)
     #Metalearners
-    experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'])
-    experiments1c = models.meta_learner(data1c, ['adapter','upu','lr','rf','random'])
+    experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'],1)
+    experiments1c = models.meta_learner(data1c, ['adapter','upu','lr','rf','random'],1)
 
     experiments0 = eval.first_level_asmeta(['bart_all',  'bart_FEMALE',  'bart_MALE' ],
                         ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE'],
@@ -113,91 +113,34 @@ level 0 data: Binary treatments
 level 0 outcome: Binary
 '''
 
-
-#SAVING 10 datasets
-n_units = 5000
-n_causes = 10000# 10% var
-sim = 10
-
-#dp.generate_samples(sim,n_units, n_causes)
-
-
-#CEVAE CODE ON NOTEBOOK - CHANGE NAME
-#sim1_cevae_out = dp.join_simulation('results\\simulations\\cevae_output_sim1_',['a','b','c'])
-#sim1 = join_simulation('results\\simulations\\cevae_output_sim1_',['a','b','c'])
-
-#DA
-pathtc = 'data_s\\snp_simulated1_truecauses.txt'
-pathy01 = 'data_s\\snp_simulated1_y01.txt'
-tc  = pd.read_pickle(pathtc)
-y01 = pd.read_pickle(pathy01)
-
-
-
-#dp.sim_level1data([0,1,3],tc,y01,'sim_roc_a')
-#CHECK PREDICTIVE CHECK
-
+if EVALUATION_S: 
+    
+    #SAVING 10 datasets
+    n_units = 5000
+    n_causes = 10000# 10% var
+    sim = 10
+    
+    #dp.generate_samples(sim,n_units, n_causes)
+    
+    
+    #DA
+    pathtc = 'data_s\\snp_simulated1_truecauses.txt'
+    pathy01 = 'data_s\\snp_simulated1_y01.txt'
+    tc  = pd.read_pickle(pathtc)
+    y01 = pd.read_pickle(pathy01)
+    
+    
+    #CREATE THE DATASET
+    #dp.sim_level1data([0,1,2,3,4,5,6,7,8,9],tc,y01,'sim_roc_simulations')
+    #eval.roc_plot('results//sim_roc_simulations.txt')
+    eval.simulation_eval(10)
+    
 
 
-done = [0,1,3] #pred_check = [0.53]
-
-out_meta = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','prfull','refull','version'])
-out_metac = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','prfull','refull','version'])
-out_level0 = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','version'])
-pehe = pd.DataFrame(columns=['method','pehe_noncausal', 'pehe_causal','pehe_overall','version'])
-
-out_diversity = []
+#ROC SCORE FOR CEVAE 
 
 
-for i in done:
+#file1 = 'results//simulations//pred_y_for_roc//cevae_pred'
+#file2 = 'results//simulations//pred_y_for_roc//cevae_test'
+#eval.roc_cevae(file1,file2,10,'cevae')
 
-    data = pd.read_csv('results\\level1data_sim_'+str(i)+'.txt',sep=';')
-    #Meta-learners
-    exp1 = models.meta_learner(data.iloc[:,[1,2,3]],['rf','lr','random','upu','adapter'])
-    exp1c = models.meta_learner(data.iloc[:,[1,4,3]],['rf','lr','random','upu','adapter'])
-    exp0 = eval.first_level_asmeta(['cevae' ],['coef'],data.iloc[:,[1,2,3]])
-
-    exp1['version'] = str(i)
-    exp1c['version'] = str(i)
-    exp0['version'] = str(i)
-
-    qav, q_ = eval.diversity(['cevae' ],['coef'], data.iloc[:,[1,2,3]])
-
-
-    #Continuos
-    #pehe = pd.DataFrame(columns=['method','pehe_noncausal', 'pehe_causal','pehe_overall'])
-
-    X = np.matrix(data.iloc[:,[1,4]])
-    y = np.array(data.iloc[:,5])
-    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=33)
-
-    #model = sm.Logit(y,X).fit_regularized(method='l1')
-    from sklearn.linear_model import LinearRegression
-    model = LinearRegression().fit(X_train,y_train)
-    y_pred = model.predict(X_test)
-    y_full = model.predict(X)
-
-    pehe_ = eval.pehe_calc(np.array(data.iloc[:,5]), np.array(data.iloc[:,1]),'CEVAE',str(i))
-    pehe = pehe.append(pehe_,ignore_index=True)
-    pehe_ = eval.pehe_calc(np.array(data.iloc[:,5]), np.array(data.iloc[:,2]),'DA',str(i))
-    pehe = pehe.append(pehe_,ignore_index=True)
-    pehe_ = eval.pehe_calc(np.array(data.iloc[:,5]),y_full,'Meta-learner (Full set)',str(i))
-    pehe = pehe.append(pehe_,ignore_index=True)
-    pehe_ = eval.pehe_calc(y_test,y_pred,'Meta-learner (Testing set)',str(i))
-    pehe = pehe.append(pehe_,ignore_index=True)
-
-
-    out_meta = out_meta.append(exp1,ignore_index=True)
-    out_metac = out_metac.append(exp1c,ignore_index=True)
-    out_level0 = out_level0.append(exp0,ignore_index=True)
-    out_diversity.append(qav)
-
-
-diversity = pd.DataFrame({'diversity':out_diversity})
-diversity['version'] = done
-
-out_meta.to_csv('results\\eval_sim_metalevel1.txt', sep=';')
-out_metac.to_csv('results\\eval_sim_metalevel1c.txt', sep=';')
-out_level0.to_csv('results\\eval_sim_metalevel0.txt', sep=';')
-diversity.to_csv('results\\eval_sim_diversity.txt', sep=';')
-pehe.to_csv('results\\eval_sim_pehe.txt', sep=';')

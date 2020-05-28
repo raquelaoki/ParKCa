@@ -322,9 +322,9 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
 
 
 #join simulation 
-def join_simulation(path, version, files):
+def join_simulation(path, version):
     #path = 'results\\simulations\\cevae_output_sim0_'
-    letter = ['a','b','c','d','e','f','g']
+    letter = ['a','b','c','d','e','f','g','h']
     files = []
     
     for l in letter: 
@@ -353,13 +353,12 @@ def sim_level1data(done,tc,y01,roc_name):
         y01_sim1 = y01[sim]
         
         train = pd.read_pickle('data_s\\snp_simulated1_'+str(i)+'.txt')
-        coef, coef_continuos, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,sim,15,100)
+        coef, coef_continuos, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,sim,15,10)
         #Join CEVAE results
-        cevae = join_simulation(path = 'results\\simulations\\',   version = i, files= ['a','b'])
+        cevae = join_simulation(path = 'results\\simulations\\',   version = i)
         roc_table = roc_table.append(roc,ignore_index=True)
         #Create dataset
         data = pd.DataFrame({'cevae':cevae['cate'],'coef':coef,'y_out':tc_sim1_bin, 'coef_c':coef_continuos,'y_c':tc_sim1})
-        #datac = pd.DataFrame({'cevae':cevae['cate'],'coef':coef_continuos,'y_out':tc_sim1_bin})
         data.to_csv('results\\level1data_sim_'+str(i)+'.txt', sep=';')
     
     roc_table.to_pickle('results//'+roc_name+'.txt')
