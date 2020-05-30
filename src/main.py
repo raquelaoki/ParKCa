@@ -32,7 +32,7 @@ pd.set_option('display.max_columns', 500)
 from scipy.stats import ttest_ind,ttest_rel
 
 SIMULATION = False
-EVALUATION_A = False
+EVALUATION_A = True
 EVALUATION_S = True
 #cuda test torch.cuda.FloatTensor(2)
 
@@ -41,9 +41,12 @@ Real-world application
 level 0 data: gene expression of patients with cancer
 level 0 outcome: metastasis
 '''
-#models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=False, CEVAEBOOL=False,path = path)
 
 if EVALUATION_A:
+    print("\n\n\n STARTING EXPERIMENTS ON APPLICATION")
+
+    #models.learners(APPLICATIONBOOL=True,DABOOL=True, BARTBOOL=False, CEVAEBOOL=False,path = path)
+
     features_bart =  pd.read_csv("results\\coef_bart.txt",sep=';')
     features_da15 = pd.read_pickle("results\\coef_15.txt")
     features_da15c = pd.read_pickle("results\\coefcont_15.txt")
@@ -71,40 +74,18 @@ if EVALUATION_A:
                         data1)
     print('DIVERSITY: ', qav)
     #Metalearners
-    experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','random'],1)
-    experiments1c = models.meta_learner(data1c, ['adapter','upu','lr','rf','random'],1)
+    experiments1 = models.meta_learner(data1, ['adapter','upu','lr','rf','nn','random'],1)
+    experiments1c = models.meta_learner(data1c, ['adapter','upu','lr','rf','nn','random'],1)
 
-    experiments0 = eval.first_level_asmeta(['bart_all',  'bart_FEMALE',  'bart_MALE' ],
-                        ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE'],
-                        data1)
-    #models.meta_learner(data1, ['lr'])
+    #experiments0 = eval.first_level_asmeta(['bart_all',  'bart_FEMALE',  'bart_MALE' ],
+    #                    ['dappcalr_15_LGG','dappcalr_15_SKCM','dappcalr_15_all','dappcalr_15_FEMALE','dappcalr_15_MALE'],
+    #                    data1)
 
 
     experiments1.to_csv('results\\eval_metalevel1.txt', sep=';')
     experiments1c.to_csv('results\\eval_metalevel1c.txt', sep=';')
-    experiments0.to_csv('results\\eval_metalevel0.txt', sep=';')
-
-    #more layers and nodes improved
-    from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
-    
-    
-    count_class_0, count_class_1 = data1.y_out.value_counts()
-    
-    # Divide by class
-    df_class_0 = data1[data1['y_out'] == 0]
-    df_class_1 = data1[data1['y_out'] == 1]
-    
-    df_class_0_under = df_class_0.sample(4000)
-    df_class_1_over = df_class_1.sample(4000, replace=True)
-    data2 = pd.concat([df_class_0_under, df_class_1_over], axis=0)
-    
-    
-    y = data1['y_out']
-    X = data1.drop(['y_out'], axis=1)
-    
-    
-    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
-    models.nn_classifier(y_train, y_test, X_train, X_test, 1000,10,0.001)
+    #experiments0.to_csv('results\\eval_metalevel0.txt', sep=';')
+    print("DONE WITH EXPERIMENTS ON APPLICATION")
 
 
 '''
@@ -114,7 +95,8 @@ level 0 outcome: Binary
 '''
 
 if EVALUATION_S: 
-    
+    print("\n\n\n STARTING EXPERIMENTS ON SIMULATION")
+
     #SAVING 10 datasets
     n_units = 5000
     n_causes = 10000# 10% var
@@ -134,8 +116,9 @@ if EVALUATION_S:
     #dp.sim_level1data([0,1,2,3,4,5,6,7,8,9],tc,y01,'sim_roc_simulations')
     #eval.roc_plot('results//sim_roc_simulations.txt')
     eval.simulation_eval(10)
-    
+    print("DONE WITH EXPERIMENTS ON SIMULATION")
 
+    
 
 #ROC SCORE FOR CEVAE 
 
@@ -143,4 +126,13 @@ if EVALUATION_S:
 #file1 = 'results//simulations//pred_y_for_roc//cevae_pred'
 #file2 = 'results//simulations//pred_y_for_roc//cevae_test'
 #eval.roc_cevae(file1,file2,10,'cevae')
+p = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+i= 1
+#for i in range(10):
 
+data = pd.read_csv('results\\level1data_sim_'+str(i)+'.txt',sep=';')
+
+for prob in p: 
+    #Meta-learners
+    exp1 = models.meta_learner(data.iloc[:,[1,2,3]],['nn'],prob)
+    print(exp1)

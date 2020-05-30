@@ -281,8 +281,8 @@ def simulation_eval(nsim):
             data = pd.read_csv('results\\level1data_sim_'+str(i)+'.txt',sep=';')
             #Meta-learners
                 
-            exp1 = models.meta_learner(data.iloc[:,[1,2,3]],['rf','lr','random','upu','adapter'],prob)
-            exp1c = models.meta_learner(data.iloc[:,[1,4,3]],['rf','lr','random','upu','adapter'],prob)
+            exp1 = models.meta_learner(data.iloc[:,[1,2,3]],['rf','lr','random','upu','adapter','nn'],prob)
+            exp1c = models.meta_learner(data.iloc[:,[1,4,3]],['rf','lr','random','upu','adapter','nn'],prob)
             exp0 = first_level_asmeta(['cevae' ],['coef'],data.iloc[:,[1,2,3]])
         
             exp1['version'] = str(i)

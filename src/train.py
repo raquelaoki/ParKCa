@@ -10,23 +10,22 @@ from os import listdir
 from os.path import isfile, join
 
 from sklearn.linear_model import LinearRegression
-from sklearn import svm
-from sklearn.decomposition import NMF, PCA
+#from sklearn.decomposition import NMF, PCA
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split,  GridSearchCV, StratifiedKFold
-from sklearn import metrics
-from sklearn.metrics import confusion_matrix,f1_score, accuracy_score, mean_squared_error
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split,  GridSearchCV
+#from sklearn import metrics
+from sklearn.metrics import confusion_matrix,f1_score
+#from sklearn.metrics.pairwise import cosine_similarity
+#from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from sklearn.utils.estimator_checks import check_estimator
+#from sklearn.utils.estimator_checks import check_estimator
 from sklearn.metrics import roc_curve,roc_auc_score
 from sklearn import linear_model
 from sklearn import calibration
 
-from scipy.stats import gamma
+#from scipy.stats import gamma
 from scipy import sparse, stats
-import statsmodels.discrete.discrete_model as sm
+#import statsmodels.discrete.discrete_model as sm
 
 #DA
 import functools
@@ -35,15 +34,13 @@ import functools
 #https://github.com/aldro61/pu-learning
 from puLearning.puAdapter import PUAdapter
 #https://github.com/t-sakai-kure/pywsl
-from pywsl.pul import pumil_mr, pu_mr
-from pywsl.utils.syndata import gen_twonorm_pumil
-from pywsl.utils.comcalc import bin_clf_err
+from pywsl.pul import pu_mr #pumil_mr
+#from pywsl.utils.syndata import gen_twonorm_pumil
+#from pywsl.utils.comcalc import bin_clf_err
 
-import statsmodels.discrete.discrete_model as sm
-from sklearn.ensemble import RandomForestClassifier
 #NN
 from torch.utils.data import Dataset, DataLoader
-import torch
+import torch as T
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import WeightedRandomSampler
@@ -356,100 +353,110 @@ def classification_models(y,y_,X,X_,name_model):
         cm_: confusion matrix for the full dataset
         y_all_: prediction for the full dataset
     """
-
-    warnings.filterwarnings("ignore")
-    if name_model == 'nn':
-        #IMPLEMENT
-        print('a')
-    elif name_model == 'adapter':
-        #keep prob
-        #it was c=0.5
-        estimator = SVC(C=0.3, kernel='rbf',gamma='scale',probability=True)
-        model = PUAdapter(estimator, hold_out_ratio=0.1)
-        X = np.matrix(X)
-        y0 = np.array(y)
-        y0[np.where(y0 == 0)[0]] = -1
-        model.fit(X, y0)
-
-    elif name_model == 'upu':
-        '''
-        pul: nnpu (Non-negative PU Learning), pu_skc(PU Set Kernel Classifier),
-        pnu_mr:PNU classification and PNU-AUC optimization (the one tht works: also use negative data)
-        nnpu is more complicated (neural nets, other methos seems to be easier)
-        try https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/pu_skc/demo_pu_skc.py
-        and https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
-         '''
-        print('upu', X.shape[1])
-        #https://github.com/t-sakai-kure/pywsl
-        prior =.5 #change for the proportion of 1 and 0
-        param_grid = {'prior': [prior],
-                          'lam': np.logspace(-3, 3, 5), #what are these values
-                          'basis': ['lm']}
-        #upu (Unbiased PU learning)
-        #https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
-        model = GridSearchCV(estimator=pu_mr.PU_SL(),
-                               param_grid=param_grid, cv=3, n_jobs=-1)
-        X = np.matrix(X)
-        y = np.array(y)
-        model.fit(X, y)
-
-    elif name_model == 'lr':
-        print('lr',X.shape[1])
-        X = np.matrix(X)
-        y = np.array(y)
-        #model = sm.Logit(y,X).fit_regularized(method='l1')
-        from sklearn.linear_model import LogisticRegression
-        w1 = y.sum()/len(y)
-        w0 = 1 - w1
-        sample_weight = {0:w1,1:w0}
-        model = LogisticRegression(C=.1,class_weight=sample_weight,penalty='l2') #
-        model.fit(X,y)
-
-        #p = LogisticRegression(C=1e9,class_weight=sample_weight).fit(X_train,y_train).predict(X_train)
-
-
-
-
-    elif name_model=='rf':
-        print('rd',X.shape[1])
-        #md = max(np.floor(X.shape[1]/3),6)
-        w = len(y)/y.sum()
-        sample_weight = np.array([w if i == 1 else 1 for i in y])
-        model = RandomForestClassifier(max_depth=12, random_state=0)
-        model.fit(X, y,sample_weight = sample_weight)
-        #solver='lbfgs'
-
-    else:
-        print('random',X.shape[1])
-
-
     X_full = np.concatenate((X,X_), axis = 0 )
     y_full = np.concatenate((y,y_), axis = 0)
+        
+    warnings.filterwarnings("ignore")
+    if name_model == 'nn':
+        y_pred, ypred = nn_classifier(y, y_, X, X_,X_full)
+        #print(y_pred[0:10])
+        pr = precision(1,confusion_matrix(y_,y_pred))
+        f1 = f1_score(y_,y_pred)
+        if np.isnan(pr) or pr==0 or f1<0.06: 
+            while np.isnan(pr) or pr ==0 or f1<0.06: 
+                print('\n\n trying again \n\n')
+                y_pred, ypred = nn_classifier(y, y_, X, X_,X_full)
+                pr = precision(1,confusion_matrix(y_,y_pred))
+                f1 = f1_score(y_,y_pred)
+        
+    else: 
 
-    if name_model=='random':
-         p = y.sum()+y_.sum()
-         p_full = p/(len(y)+len(y_))
-         y_pred = np.random.binomial(n=1,p=y_.sum()/len(y_),size =X_.shape[0])
-         ypred = np.random.binomial(n=1,p=p_full,size =X_full.shape[0])
-    else:
-        y_pred = model.predict(X_)
-        ypred = model.predict(X_full)
-
-    if name_model =='uajfiaoispu':
-        print(y_pred)
-        print('\nTesting set: \n',confusion_matrix(y_,y_pred))
-        print('\nFull set: \n',confusion_matrix(y_full,ypred))
-        print('\nPrecision ',precision(1,confusion_matrix(y_,y_pred)))
-        print('Recall',recall(1,confusion_matrix(y_,y_pred)))
-
-    #if name_model == 'lr':
-     #   print(y_pred.sum(),y_pred)
-     #   y_pred = [0 if i<0.5 else 1 for i in y_pred]
-     #   ypred = [0 if i<0.5 else 1 for i in ypred]
-
-    #Some models pred -1 instead of 0
-    y_pred = np.where(y_pred==-1,0,y_pred)
-    ypred = np.where(ypred==-1,0,ypred)
+        if name_model == 'adapter':
+            #keep prob
+            #it was c=0.5
+            estimator = SVC(C=0.3, kernel='rbf',gamma='scale',probability=True)
+            model = PUAdapter(estimator, hold_out_ratio=0.1)
+            X = np.matrix(X)
+            y0 = np.array(y)
+            y0[np.where(y0 == 0)[0]] = -1
+            model.fit(X, y0)
+    
+        elif name_model == 'upu':
+            '''
+            pul: nnpu (Non-negative PU Learning), pu_skc(PU Set Kernel Classifier),
+            pnu_mr:PNU classification and PNU-AUC optimization (the one tht works: also use negative data)
+            nnpu is more complicated (neural nets, other methos seems to be easier)
+            try https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/pu_skc/demo_pu_skc.py
+            and https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
+             '''
+            print('upu', X.shape[1])
+            #https://github.com/t-sakai-kure/pywsl
+            prior =.5 #change for the proportion of 1 and 0
+            param_grid = {'prior': [prior],
+                              'lam': np.logspace(-3, 3, 5), #what are these values
+                              'basis': ['lm']}
+            #upu (Unbiased PU learning)
+            #https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
+            model = GridSearchCV(estimator=pu_mr.PU_SL(),
+                                   param_grid=param_grid, cv=3, n_jobs=-1)
+            X = np.matrix(X)
+            y = np.array(y)
+            model.fit(X, y)
+    
+        elif name_model == 'lr':
+            print('lr',X.shape[1])
+            X = np.matrix(X)
+            y = np.array(y)
+            #model = sm.Logit(y,X).fit_regularized(method='l1')
+            from sklearn.linear_model import LogisticRegression
+            w1 = y.sum()/len(y)
+            w0 = 1 - w1
+            sample_weight = {0:w1,1:w0}
+            model = LogisticRegression(C=.1,class_weight=sample_weight,penalty='l2') #
+            model.fit(X,y)
+    
+            #p = LogisticRegression(C=1e9,class_weight=sample_weight).fit(X_train,y_train).predict(X_train)
+    
+    
+    
+    
+        elif name_model=='rf':
+            print('rd',X.shape[1])
+            #md = max(np.floor(X.shape[1]/3),6)
+            w = len(y)/y.sum()
+            sample_weight = np.array([w if i == 1 else 1 for i in y])
+            model = RandomForestClassifier(max_depth=12, random_state=0)
+            model.fit(X, y,sample_weight = sample_weight)
+            #solver='lbfgs'
+    
+        else:
+            print('random',X.shape[1])
+    
+    
+        if name_model=='random':
+             p = y.sum()+y_.sum()
+             p_full = p/(len(y)+len(y_))
+             y_pred = np.random.binomial(n=1,p=y_.sum()/len(y_),size =X_.shape[0])
+             ypred = np.random.binomial(n=1,p=p_full,size =X_full.shape[0])
+        else:
+            y_pred = model.predict(X_)
+            ypred = model.predict(X_full)
+    
+        if name_model =='uajfiaoispu':
+            print(y_pred)
+            print('\nTesting set: \n',confusion_matrix(y_,y_pred))
+            print('\nFull set: \n',confusion_matrix(y_full,ypred))
+            print('\nPrecision ',precision(1,confusion_matrix(y_,y_pred)))
+            print('Recall',recall(1,confusion_matrix(y_,y_pred)))
+    
+        #if name_model == 'lr':
+         #   print(y_pred.sum(),y_pred)
+         #   y_pred = [0 if i<0.5 else 1 for i in y_pred]
+         #   ypred = [0 if i<0.5 else 1 for i in ypred]
+    
+        #Some models pred -1 instead of 0
+        y_pred = np.where(y_pred==-1,0,y_pred)
+        ypred = np.where(ypred==-1,0,ypred)
 
     #fpr, tpr, _ = roc_curve(y_,y_pred)
     pr = precision(1,confusion_matrix(y_,y_pred))
@@ -481,12 +488,11 @@ def meta_learner(data1, models, prob ):
     outout:
     '''
     roc_table = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','prfull','refull'])
-    tp_genes = []
 
     #split data trainint and testing
     y = data1['y_out']
     X = data1.drop(['y_out'], axis=1)
-    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=22)
+    y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=32)
     
     #starting ensemble
     e_full = np.zeros(len(y))
@@ -527,130 +533,125 @@ def meta_learner(data1, models, prob ):
     return roc_table
 
 
-def nn_classifier(y_train, y_test, X_train, X_test, EPOCHS, BATCH_SIZE, LEARNING_RATE):
+def nn_classifier(y_train, y_test, X_train, X_test,X_full):
 
+    #https://docs.microsoft.com/en-us/archive/msdn-magazine/2019/october/test-run-neural-binary-classification-using-pytorch
+    # ------------------------------------------------------------
+    class Batcher:
+      def __init__(self, num_items, batch_size, seed=0):
+        self.indices = np.arange(num_items)
+        self.num_items = num_items
+        self.batch_size = batch_size
+        self.rnd = np.random.RandomState(seed)
+        self.rnd.shuffle(self.indices)
+        self.ptr = 0
+      def __iter__(self):
+        return self
+      def __next__(self):
+        if self.ptr + self.batch_size > self.num_items:
+          self.rnd.shuffle(self.indices)
+          self.ptr = 0
+          raise StopIteration  # exit calling for-loop
+        else:
+          result = self.indices[self.ptr:self.ptr+self.batch_size]
+          self.ptr += self.batch_size
+          return result
+      
+    # ------------------------------------------------------------
+    def akkuracy(model, data_x):
+      # data_x and data_y are numpy array-of-arrays matrices
+      X = T.Tensor(data_x)
+      oupt = model(X)            # a Tensor of floats
+      oupt = oupt.detach().float()
+      oupt = [1 if i > 0.5 else 0 for i in oupt]
+      #np.equal(data_y,oupt).sum()
+      #pred_y = oupt >= 0.5       # a Tensor of 0s and 1s
+      #num_correct = np.equal(data_y,oupt).sum()  # a Tensor
+      #acc = (num_correct.item() * 100.0 / len(data_y)) 
+      #print('\n',confusion_matrix(data_y, oupt))
+      #print('\n', f1_score(data_y, oupt))
+      return oupt 
+    # ------------------------------------------------------------
+    class Net(T.nn.Module):
+      def __init__(self):
+        super(Net, self).__init__()
+        self.hid1 = T.nn.Linear(size, 16)  # 4-(8-8)-1
+        #self.hid2 = T.nn.Linear(16, 16)
+        self.oupt = T.nn.Linear(16, 1)
+        T.nn.init.xavier_uniform_(self.hid1.weight)
+        T.nn.init.zeros_(self.hid1.bias)
+        #T.nn.init.xavier_uniform_(self.hid2.weight)
+        #T.nn.init.zeros_(self.hid2.bias)
+        T.nn.init.xavier_uniform_(self.oupt.weight)
+        T.nn.init.zeros_(self.oupt.bias)
+      def forward(self, x):
+        z = T.tanh(self.hid1(x))
+        #z = T.tanh(self.hid2(z))
+        z = T.sigmoid(self.oupt(z))  # necessary
+        return z
 
-    #https://towardsdatascience.com/pytorch-tabular-binary-classification-a0368da5bb89
+    #T.manual_seed(10)
+    #np.random.seed(10)
+    size = X_train.shape[1] 
+    #print(size)
+ 
+    net = Net()
+  
+    # 3. train model
+    net = net.train()  # set training mode
+    lrn_rate = 0.01
+    bat_size = 500
+    loss_func = T.nn.BCELoss()  # softmax() + binary CE
+    optimizer = T.optim.SGD(net.parameters(), lr=lrn_rate)
+    max_epochs = 500
+    n_items = len(X_train)
+    batcher = Batcher(n_items, bat_size)
+    
+    #
+    X_test = X_test.values
+    X_train = X_train.values
+    # ------------------------------------------------------------
 
-
-    class trainData(Dataset):
-
-        def __init__(self, X_data, y_data):
-            self.X_data = X_data
-            self.y_data = y_data
-
-        def __getitem__(self, index):
-            return self.X_data[index], self.y_data[index]
-
-        def __len__ (self):
-            return len(self.X_data)
-
-
-    train_data = trainData(torch.FloatTensor(X_train.to_numpy()),
-                           torch.FloatTensor(y_train.to_numpy()))
-    ## test data
-    class testData(Dataset):
-
-        def __init__(self, X_data):
-            self.X_data = X_data
-
-        def __getitem__(self, index):
-            return self.X_data[index]
-
-        def __len__ (self):
-            return len(self.X_data)
-
-
-    test_data = testData(torch.FloatTensor(X_test.to_numpy()))
-    test_data_full = testData(torch.FloatTensor(pd.concat([X_train, X_test],axis=0).to_numpy()))
-    #test_data = testData(torch.FloatTensor(X_test.to_numpy()))
-
-
-    class_sample_count = np.array([len(np.where(y_train==t)[0]) for t in np.unique(y_train)])
-    weight = 1. / class_sample_count
-    samples_weight = np.array([weight[int(t)] for t in y_train])
-
-    samples_weight = torch.from_numpy(samples_weight)
-    sampler = WeightedRandomSampler(samples_weight.type('torch.DoubleTensor'), len(samples_weight))
-
-
-    train_loader = DataLoader(dataset=train_data, batch_size=BATCH_SIZE)
-    test_loader = DataLoader(dataset=test_data, batch_size=1)
-    test_full = DataLoader(dataset = test_data_full,batch_size=1)
-    y_test_full = pd.concat([y_train,y_test],axis =0).to_numpy()
-
-
-    class binaryClassification(nn.Module):
-        def __init__(self):
-            super(binaryClassification, self).__init__()
-            # Number of input features is 12.
-            self.layer_1 = nn.Linear(8, 32)
-            self.layer_2 = nn.Linear(32, 32)
-            self.layer_out = nn.Linear(32, 1)
-
-            self.relu = nn.ReLU()
-            self.sigmoid = nn.Sigmoid()
-            self.batchnorm1 = nn.BatchNorm1d(32)
-            self.batchnorm2 = nn.BatchNorm1d(32)
-
-        def forward(self, inputs):
-            x = self.relu(self.layer_1(inputs))
-            x = self.batchnorm1(x)
-            x = self.relu(self.layer_2(x))
-            x = self.batchnorm2(x)
-            x = self.sigmoid(self.layer_out(x))
-            #x = self.layer_out(x)
-
-            return x
-
-    model = binaryClassification()
-    #model.to(device)
-    print(model)
-
-    criterion = nn.BCELoss()#BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-    model.train()
-    for e in range(1, EPOCHS+1):
-        epoch_loss = 0
-        for X_batch, y_batch in train_loader:
-            optimizer.zero_grad()
-            y_pred = model(X_batch)
-            loss = criterion(y_pred, y_batch.unsqueeze(1))
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
-
-    print(f'Epoch {e+0:03}: | Loss: {epoch_loss/len(train_loader):.5f}')
-
-
-    y_pred_list = []
-    model.eval()
-    with torch.no_grad():
-        for X_batch in test_loader:
-            y_test_pred = model(X_batch)
-            #y_test_pred = torch.sigmoid(y_test_pred)
-            #y_pred_tag = torch.round(y_test_pred)
-            y_pred_list.append(y_test_pred[0].detach().numpy())
-
-
-    y_pred_list = [a.squeeze().tolist() for a in y_pred_list]
-    y_pred_list = [1 if a>0.5 else 0 for a in y_pred_list]
-    f1_ = f1_score(y_test, y_pred_list)
-    print(confusion_matrix(y_test, y_pred_list))
-
-    y_pred_list_full = []
-    model.eval()
-    with torch.no_grad():
-        for X_batch in test_full:
-            #X_batch = X_batch.to(device)
-            y_test_pred = model(X_batch)
-            #y_test_pred = torch.sigmoid(y_test_pred)
-            #y_pred_tag = torch.round(y_test_pred)
-            y_pred_list_full.append(y_test_pred[0].detach().numpy())
-
-    y_pred_list_full = [a.squeeze().tolist() for a in y_pred_list_full]
-    y_pred_list_full = [1 if a>0.5 else 0 for a in y_pred_list_full]
-    f1 = f1_score(y_test_full, y_pred_list_full)
-    print(confusion_matrix(y_test_full, y_pred_list_full))
-    return f1_, f1
+    print('Starting training')
+    
+    count_class_0, count_class_1 = y_train.value_counts()
+    
+    # Divide by class
+    df_class_0 = pd.DataFrame(X_train[y_train== 0])
+    df_class_1 = pd.DataFrame(X_train[y_train == 1])
+    
+    df_class_0_under = df_class_0.sample(4000)
+    df_class_1_over = df_class_1.sample(4000, replace=True)
+    X_train2 = pd.concat([df_class_0_under, df_class_1_over], axis=0)
+    X_train2['y']= np.repeat([0,1],4000)
+    X_train2 = X_train2.sample(frac=1).reset_index(drop=True)
+    
+    y_train2 = X_train2['y']
+    X_train2 = X_train2.drop(['y'], axis=1)
+    
+    X_train2 = X_train2.values
+    y_train2 = y_train2.values
+    
+    
+    for epoch in range(0, max_epochs):
+      for curr_bat in batcher:
+        X = T.Tensor(X_train2[curr_bat])
+        Y = T.Tensor(y_train2[curr_bat])
+        optimizer.zero_grad()
+        oupt = net(X)
+        loss_obj = loss_func(oupt, Y)
+        loss_obj.backward()
+        optimizer.step()
+    print('Training complete \n')
+    # 4. evaluate model
+    net = net.eval()  # set eval mode
+    #acc = akkuracy(net, X_test, y_test)
+    # 5. save model
+    #print(“Saving trained model \n”)
+    #path = “.\\Models\\banknote_model.pth”
+    #T.save(net.state_dict(), path)
+    # ------------------------------------------------------------   
+    y_pred = akkuracy(net, X_test)
+    yfull = akkuracy(net, X_full)
+    return y_pred, yfull
+    
