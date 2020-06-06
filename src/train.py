@@ -5,31 +5,21 @@ warnings.simplefilter("ignore")
 import eval as eval
 import datapreprocessing as dp
 #import CEVAE as cevae
-
 from os import listdir
 from os.path import isfile, join
 
 from sklearn.linear_model import LinearRegression
-#from sklearn.decomposition import NMF, PCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split,  GridSearchCV
-#from sklearn import metrics
 from sklearn.metrics import confusion_matrix,f1_score
-#from sklearn.metrics.pairwise import cosine_similarity
-#from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-#from sklearn.utils.estimator_checks import check_estimator
 from sklearn.metrics import roc_curve,roc_auc_score
 from sklearn import linear_model
 from sklearn import calibration
-
-#from scipy.stats import gamma
 from scipy import sparse, stats
-#import statsmodels.discrete.discrete_model as sm
 
 #DA
 import functools
-
 #Meta-leaners packages
 #https://github.com/aldro61/pu-learning
 from puLearning.puAdapter import PUAdapter
@@ -37,7 +27,6 @@ from puLearning.puAdapter import PUAdapter
 from pywsl.pul import pu_mr #pumil_mr
 #from pywsl.utils.syndata import gen_twonorm_pumil
 #from pywsl.utils.comcalc import bin_clf_err
-
 #NN
 from torch.utils.data import Dataset, DataLoader
 import torch as T
@@ -113,6 +102,16 @@ def deconfounder_PPCA_LR(train,colnames,y01,name,k,b):
     return np.multiply(coef_m,coef_z), coef_m, roc, filename
 
 def fm_PPCA(train,latent_dim, flag_pred):
+    '''
+    Fit the PPCA
+    input:
+        train: dataset
+        latent_dim: size of latent variables
+        flag_pred: if values to calculate the predictive check should be saved
+
+    output: w and z values, generated sample to predictive check
+
+    '''
     #Reference: https://github.com/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Probabilistic_PCA.ipynb
     from tensorflow.keras import optimizers
     import tensorflow as tf #.compat.v2
@@ -149,9 +148,6 @@ def fm_PPCA(train,latent_dim, flag_pred):
         stddv_datapoints=stddv_datapoints)
 
     model = tfd.JointDistributionCoroutine(concrete_ppca_model)
-
-    #actual_w, actual_z, x_train = model.sample()
-
 
     w = tf.Variable(np.ones([data_dim, latent_dim]), dtype=tf.float32)
     z = tf.Variable(np.ones([latent_dim, num_datapoints]), dtype=tf.float32)
@@ -193,6 +189,9 @@ def fm_PPCA(train,latent_dim, flag_pred):
     return w.numpy(),z.numpy(), x_generated
 
 def daHoldout(train,holdout_portion):
+    '''
+    Hold out a few values from train set to calculate predictive check
+    '''
     num_datapoints, data_dim = train.shape
     n_holdout = int(holdout_portion * num_datapoints * data_dim)
 
@@ -210,9 +209,17 @@ def daHoldout(train,holdout_portion):
     return x_train, x_vad,holdout_mask
 
 def daPredCheck(x_val,x_gen,w,z,holdout_mask):
-    #obs_ll = []
-    #rep_ll = []
-    #holdout_subjects = np.unique(holdout_row)
+    '''
+    calculate the predictive check
+    input:
+        x_val: observed values
+        x_gen: generated values
+        w, z: from fm_PPCA
+        holdout_mask
+    output: pvalue from the predictive check
+
+
+    '''
     holdout_mask1 = np.asarray(holdout_mask).reshape(-1)
     x_val1 = np.asarray(x_val).reshape(-1)
     x1 = np.asarray(np.multiply(np.transpose(np.dot(w,z)), holdout_mask)).reshape(-1)
@@ -237,6 +244,7 @@ def daPredCheck(x_val,x_gen,w,z,holdout_mask):
 
 def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
+    outcome model from the DA
     input:
     - x: training set
     - x_latent: output from factor model
@@ -246,10 +254,6 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
     '''
     import scipy.stats as st
     model = linear_model.SGDClassifier(penalty='l2', alpha=0.1, l1_ratio=0.01,loss='modified_huber', fit_intercept=True,random_state=0)
-
-
-    #ridge = linear_model.RidgeClassifierCV(scoring='roc_auc',cv =5, normalize = True)
-
     if roc_flag:
         #use testing and training set
         x_aug = np.concatenate([x,x_latent],axis=1)
@@ -268,17 +272,12 @@ def outcome_model_ridge(x, colnames,x_latent,y01_b,roc_flag,name):
                'fpr':fpr,
                'tpr':tpr,
                'auc':auc}
-
-
     else:
         #don't split dataset
         x_aug = np.concatenate([x,x_latent],axis=1)
         model.fit(x_aug, y01_b)
         coef = model.coef_[0]
         roc = {}
-    #resul = pd.DataFrame({'genes':colnames,colname1+'_pvalue': coef_pvalues,colname1+'_coef':coef_mean })
-
-    #extra = pd.DataFrame({'genes':colnames,colname1+'_icl': coef_low,colname1+'_icu':coef_up })
 
     return coef, roc
 
@@ -328,9 +327,7 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
 
                  #CHANGE HERE 20/05
                  roc_table.to_pickle('results//roc_'+str(k)+'.txt')
-                 #coefk_table.to_pickle('results//coef_'+str(k)+'.txt')
                  coefkc_table.to_pickle('results//coefcont_'+str(k)+'.txt')
-                 #eval.roc_plot('results//roc_'+str(k)+'.txt')
 
         if BARTBOOL:
             print('BART')
@@ -340,7 +337,6 @@ def learners(APPLICATIONBOOL, DABOOL, BARTBOOL, CEVAEBOOL,path ):
             eval.roc_plot('results//roc_'+'bart'+'.txt')
 
         if BARTBOOL and DABOOL:
-            #filenames=['results//roc_bart.txt','results//roc_15.txt']
             eval.roc_plot_all(filenames)
 
 #Meta-learner
@@ -355,32 +351,29 @@ def classification_models(y,y_,X,X_,name_model):
     """
     X_full = np.concatenate((X,X_), axis = 0 )
     y_full = np.concatenate((y,y_), axis = 0)
-        
+
     warnings.filterwarnings("ignore")
     if name_model == 'nn':
         y_pred, ypred = nn_classifier(y, y_, X, X_,X_full)
-        #print(y_pred[0:10])
         pr = precision(1,confusion_matrix(y_,y_pred))
         f1 = f1_score(y_,y_pred)
-        if np.isnan(pr) or pr==0 or f1<0.06: 
-            while np.isnan(pr) or pr ==0 or f1<0.06: 
+        if np.isnan(pr) or pr==0 or f1<0.06:
+            while np.isnan(pr) or pr ==0 or f1<0.06:
                 print('\n\n trying again \n\n')
                 y_pred, ypred = nn_classifier(y, y_, X, X_,X_full)
                 pr = precision(1,confusion_matrix(y_,y_pred))
                 f1 = f1_score(y_,y_pred)
-        
-    else: 
+
+    else:
 
         if name_model == 'adapter':
-            #keep prob
-            #it was c=0.5
             estimator = SVC(C=0.3, kernel='rbf',gamma='scale',probability=True)
             model = PUAdapter(estimator, hold_out_ratio=0.1)
             X = np.matrix(X)
             y0 = np.array(y)
             y0[np.where(y0 == 0)[0]] = -1
             model.fit(X, y0)
-    
+
         elif name_model == 'upu':
             '''
             pul: nnpu (Non-negative PU Learning), pu_skc(PU Set Kernel Classifier),
@@ -390,7 +383,6 @@ def classification_models(y,y_,X,X_,name_model):
             and https://github.com/t-sakai-kure/pywsl/blob/master/examples/pul/upu/demo_upu.py
              '''
             print('upu', X.shape[1])
-            #https://github.com/t-sakai-kure/pywsl
             prior =.5 #change for the proportion of 1 and 0
             param_grid = {'prior': [prior],
                               'lam': np.logspace(-3, 3, 5), #what are these values
@@ -402,37 +394,29 @@ def classification_models(y,y_,X,X_,name_model):
             X = np.matrix(X)
             y = np.array(y)
             model.fit(X, y)
-    
+
         elif name_model == 'lr':
             print('lr',X.shape[1])
             X = np.matrix(X)
             y = np.array(y)
-            #model = sm.Logit(y,X).fit_regularized(method='l1')
             from sklearn.linear_model import LogisticRegression
             w1 = y.sum()/len(y)
             w0 = 1 - w1
             sample_weight = {0:w1,1:w0}
             model = LogisticRegression(C=.1,class_weight=sample_weight,penalty='l2') #
             model.fit(X,y)
-    
-            #p = LogisticRegression(C=1e9,class_weight=sample_weight).fit(X_train,y_train).predict(X_train)
-    
-    
-    
-    
+
+
         elif name_model=='rf':
             print('rd',X.shape[1])
-            #md = max(np.floor(X.shape[1]/3),6)
             w = len(y)/y.sum()
             sample_weight = np.array([w if i == 1 else 1 for i in y])
             model = RandomForestClassifier(max_depth=12, random_state=0)
             model.fit(X, y,sample_weight = sample_weight)
-            #solver='lbfgs'
-    
+
         else:
             print('random',X.shape[1])
-    
-    
+
         if name_model=='random':
              p = y.sum()+y_.sum()
              p_full = p/(len(y)+len(y_))
@@ -441,24 +425,17 @@ def classification_models(y,y_,X,X_,name_model):
         else:
             y_pred = model.predict(X_)
             ypred = model.predict(X_full)
-    
+
         if name_model =='uajfiaoispu':
             print(y_pred)
             print('\nTesting set: \n',confusion_matrix(y_,y_pred))
             print('\nFull set: \n',confusion_matrix(y_full,ypred))
             print('\nPrecision ',precision(1,confusion_matrix(y_,y_pred)))
             print('Recall',recall(1,confusion_matrix(y_,y_pred)))
-    
-        #if name_model == 'lr':
-         #   print(y_pred.sum(),y_pred)
-         #   y_pred = [0 if i<0.5 else 1 for i in y_pred]
-         #   ypred = [0 if i<0.5 else 1 for i in ypred]
-    
-        #Some models pred -1 instead of 0
+
         y_pred = np.where(y_pred==-1,0,y_pred)
         ypred = np.where(ypred==-1,0,ypred)
 
-    #fpr, tpr, _ = roc_curve(y_,y_pred)
     pr = precision(1,confusion_matrix(y_,y_pred))
     re = recall(1,confusion_matrix(y_,y_pred))
 
@@ -469,7 +446,6 @@ def classification_models(y,y_,X,X_,name_model):
     f1 = f1_score(y_full,ypred)
     f1_ = f1_score(y_,y_pred)
 
-    #tp_genes = np.multiply(y_full, y_full_)
     roc = {'metalearners': name_model,'precision':pr ,'recall':re,'auc':auc,'f1':f1,'f1_':f1_,'prfull':prfull,'refull':refull}
     warnings.filterwarnings("default")
     return roc, ypred, y_pred
@@ -485,7 +461,7 @@ def recall(label, confusion_matrix):
 def meta_learner(data1, models, prob ):
     '''
     input: level 1 data
-    outout:
+    outout: roc table
     '''
     roc_table = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','prfull','refull'])
 
@@ -493,14 +469,14 @@ def meta_learner(data1, models, prob ):
     y = data1['y_out']
     X = data1.drop(['y_out'], axis=1)
     y_train, y_test, X_train, X_test = train_test_split(y, X, test_size=0.33,random_state=32)
-    
+
     #starting ensemble
     e_full = np.zeros(len(y))
     e_pred = np.zeros(len(y_test))
     e = 0
 
     #Some causes are unknown or labeled as 0
-    y_train = [i if np.random.binomial(1,prob,1)[0]==1 else 0 for i in y_train]        
+    y_train = [i if np.random.binomial(1,prob,1)[0]==1 else 0 for i in y_train]
     y_train = pd.Series(y_train)
 
     for m in models:
@@ -532,11 +508,11 @@ def meta_learner(data1, models, prob ):
     roc_table = roc_table.append(roc,ignore_index=True)
     return roc_table
 
-
 def nn_classifier(y_train, y_test, X_train, X_test,X_full):
-
+    '''
+    meta-learner 
+    '''
     #https://docs.microsoft.com/en-us/archive/msdn-magazine/2019/october/test-run-neural-binary-classification-using-pytorch
-    # ------------------------------------------------------------
     class Batcher:
       def __init__(self, num_items, batch_size, seed=0):
         self.indices = np.arange(num_items)
@@ -556,7 +532,7 @@ def nn_classifier(y_train, y_test, X_train, X_test,X_full):
           result = self.indices[self.ptr:self.ptr+self.batch_size]
           self.ptr += self.batch_size
           return result
-      
+
     # ------------------------------------------------------------
     def akkuracy(model, data_x):
       # data_x and data_y are numpy array-of-arrays matrices
@@ -564,40 +540,26 @@ def nn_classifier(y_train, y_test, X_train, X_test,X_full):
       oupt = model(X)            # a Tensor of floats
       oupt = oupt.detach().float()
       oupt = [1 if i > 0.5 else 0 for i in oupt]
-      #np.equal(data_y,oupt).sum()
-      #pred_y = oupt >= 0.5       # a Tensor of 0s and 1s
-      #num_correct = np.equal(data_y,oupt).sum()  # a Tensor
-      #acc = (num_correct.item() * 100.0 / len(data_y)) 
-      #print('\n',confusion_matrix(data_y, oupt))
-      #print('\n', f1_score(data_y, oupt))
-      return oupt 
+      return oupt
     # ------------------------------------------------------------
     class Net(T.nn.Module):
       def __init__(self):
         super(Net, self).__init__()
-        self.hid1 = T.nn.Linear(size, 16)  # 4-(8-8)-1
-        #self.hid2 = T.nn.Linear(16, 16)
+        self.hid1 = T.nn.Linear(size, 16)
         self.oupt = T.nn.Linear(16, 1)
         T.nn.init.xavier_uniform_(self.hid1.weight)
         T.nn.init.zeros_(self.hid1.bias)
-        #T.nn.init.xavier_uniform_(self.hid2.weight)
-        #T.nn.init.zeros_(self.hid2.bias)
         T.nn.init.xavier_uniform_(self.oupt.weight)
         T.nn.init.zeros_(self.oupt.bias)
       def forward(self, x):
         z = T.tanh(self.hid1(x))
-        #z = T.tanh(self.hid2(z))
         z = T.sigmoid(self.oupt(z))  # necessary
         return z
 
-    #T.manual_seed(10)
-    #np.random.seed(10)
-    size = X_train.shape[1] 
-    #print(size)
- 
+    size = X_train.shape[1]
+
     net = Net()
-  
-    # 3. train model
+
     net = net.train()  # set training mode
     lrn_rate = 0.01
     bat_size = 500
@@ -606,33 +568,28 @@ def nn_classifier(y_train, y_test, X_train, X_test,X_full):
     max_epochs = 500
     n_items = len(X_train)
     batcher = Batcher(n_items, bat_size)
-    
-    #
     X_test = X_test.values
     X_train = X_train.values
-    # ------------------------------------------------------------
-
     print('Starting training')
-    
+
     count_class_0, count_class_1 = y_train.value_counts()
-    
+
     # Divide by class
     df_class_0 = pd.DataFrame(X_train[y_train== 0])
     df_class_1 = pd.DataFrame(X_train[y_train == 1])
-    
+
     df_class_0_under = df_class_0.sample(4000)
     df_class_1_over = df_class_1.sample(4000, replace=True)
     X_train2 = pd.concat([df_class_0_under, df_class_1_over], axis=0)
     X_train2['y']= np.repeat([0,1],4000)
     X_train2 = X_train2.sample(frac=1).reset_index(drop=True)
-    
+
     y_train2 = X_train2['y']
     X_train2 = X_train2.drop(['y'], axis=1)
-    
+
     X_train2 = X_train2.values
     y_train2 = y_train2.values
-    
-    
+
     for epoch in range(0, max_epochs):
       for curr_bat in batcher:
         X = T.Tensor(X_train2[curr_bat])
@@ -643,15 +600,8 @@ def nn_classifier(y_train, y_test, X_train, X_test,X_full):
         loss_obj.backward()
         optimizer.step()
     print('Training complete \n')
-    # 4. evaluate model
     net = net.eval()  # set eval mode
-    #acc = akkuracy(net, X_test, y_test)
-    # 5. save model
-    #print(“Saving trained model \n”)
-    #path = “.\\Models\\banknote_model.pth”
-    #T.save(net.state_dict(), path)
-    # ------------------------------------------------------------   
+
     y_pred = akkuracy(net, X_test)
     yfull = akkuracy(net, X_full)
     return y_pred, yfull
-    

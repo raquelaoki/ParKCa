@@ -1,13 +1,10 @@
 #Reference https://github.com/kim-hyunsu/CEVAE-pyro/blob/master/model/vae.py
-
-#main
 from sklearn.preprocessing import MinMaxScaler
 
-from argparse import ArgumentParser
-from CEVAE_initialisation import init_qz
-from CEVAE_dataset import DATA
-from CEVAE_evaluation import Evaluator, get_y0_y1
-from CEVAE_networks import p_x_z, p_t_z, p_y_zt, q_t_x, q_y_xt, q_z_tyx
+from CEVAE_FUNCTIONS import init_qz
+from CEVAE_FUNCTIONS import DATA
+from CEVAE_FUNCTIONS import Evaluator, get_y0_y1
+from CEVAE_FUNCTIONS import p_x_z, p_t_z, p_y_zt, q_t_x, q_y_xt, q_z_tyx
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,32 +16,28 @@ from torch import optim
 print ('Available devices ', torch.cuda.device_count())
 print ('Current cuda device ', torch.cuda.current_device())
 
-# set random seeds:
-# torch.manual_seed(7)
-# np.random.seed(7)
-parser = ArgumentParser()
-# Set Hyperparameters
-parser.add_argument('-reps', type=int, default=10000)
-parser.add_argument('-z_dim', type=int, default=20)
-parser.add_argument('-h_dim', type=int, default=64)
-parser.add_argument('-epochs', type=int, default=3 ) #change to 100
-parser.add_argument('-batch', type=int, default=500)
-parser.add_argument('-lr', type=float, default=0.001)
-parser.add_argument('-decay', type=float, default=0.001)
-parser.add_argument('-print_every', type=int, default=10)
 
-args = parser.parse_args()
+class Args:
+  z_dim=20
+  h_dim=64
+  epochs=100
+  batch=500
+  lr=0.001
+  decay=0.001
+  print_every=10
 
-def model(n_causes,  data_path, y01):
+args=Args()
 
-    dataset = DATA(ncol=n_causes-1,data_path = data_path,y01 = y01)
+
+def model(n_causes,  data_path, y01,tstart, version,replications):
+
+    dataset = DATA(ncol=n_causes-1,tstart = tstart,data_path = data_path,y01 = y01,replications=replications)
 
 
     # Loop for replications
     for i, (train, valid, test, contfeats, binfeats) in enumerate(dataset.get_train_valid_test()):
-        tcol = i
-        #i, (train, valid, test, contfeats, binfeats) = dataset.get_train_valid_test()
-        print('\nReplication %i/%i' % (i + 1, args.reps))
+        tcol = i+tstart
+        print('\nReplication %i/%i (tstart %i)' % (i + 1, replications,tcol))
         # read out data
         (xtr, ttr, ytr) = train
         (xva, tva, yva) = valid
@@ -162,11 +155,6 @@ def model(n_causes,  data_path, y01):
                     optimizer.step()
 
                 if epoch % args.print_every == 0:
-                    print('Epoch %i' % epoch)
-                    #y0, y1 = get_y0_y1(p_y_zt_dist, q_y_xt_dist, q_z_tyx_dist, torch.tensor(xalltr).cuda(),
-                    #                   torch.tensor(talltr).cuda())
-
-                    #testing set
                     y0, y1 = get_y0_y1(p_y_zt_dist, q_y_xt_dist, q_z_tyx_dist, torch.tensor(xte).cuda(),
                                        torch.tensor(tte).cuda())
                     y0, y1 = y0 * ys + ym, y1 * ys + ym
@@ -181,12 +169,12 @@ def model(n_causes,  data_path, y01):
             y_pred = scaler.transform(y01_pred.mean.cpu().detach().numpy())
 
 
-            if np.random.binomial(1,0.01)==1:
+            if np.random.binomial(1,0.001)==1:
                 fig = plt.figure(figsize=(6,4))
                 plt.plot(loss['Total'], label='Total')
                 plt.title('Variational Lower Bound',fontsize=15)
                 plt.show()
-                fig.savefig('results//plots_cevae//cevae_sim0_t'+str(tcol)+'.png')
+                fig.savefig('results//cevae_sim'+str(version)+'_t'+str(tcol)+'.png')
 
             yield (y0[:,0].mean(), y1[:,0].mean(),(y1[:,0]-y0[:,0]).mean() ,y_pred,  np.squeeze(np.asarray(yte)))
 

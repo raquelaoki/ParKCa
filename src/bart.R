@@ -1,17 +1,7 @@
-#----------#----------#----------#----------#----------#----------#----------#
-#----------#----------#----------#----------#----------#----------#----------#
-#Author: Raquel AOki
-#December 2019
-#----------#----------#----------#----------#----------#----------#----------#
-#----------#----------#----------#----------#----------#----------#----------#
 
-#Description: Given dataset, use BART and GFCI as causal methods
 rm(list=ls())
 
-
 RUN_CATE = TRUE
-
-#Save pred prob for py
 
 #----------#----------#----------#----------#----------#----------#----------#
 #BART
@@ -22,9 +12,6 @@ library(bartMachine)
 library(factoextra)
 
 set.seed(99999)
-
-#https://cran.r-project.org/web/packages/bartMachine/vignettes/bartMachine.pdf
-#recommended package BayesTrees is not functional anymore
 
 setwd("~/GitHub/parkca")
 filenames =  list.files(path = "GitHub/../data",all.files = TRUE)
@@ -112,7 +99,6 @@ if(RUN_CATE){
     pred_i_all = predict(bart_machine, data.frame(X_i,Xa_))
     set.seed(10+i)
     for(s0 in 1:s){
-      #X_i_s = X_i[sample(dim(X_i)[1],floor(dim(X_i)[1]*0.85)),]
       pred_i[s0] = mean(sample(pred_i_all,floor(dim(X_i)[1]*0.85)))
     }
     dif = pred_ - pred_i
@@ -131,11 +117,11 @@ if(RUN_CATE){
     }
 
   }
-  
+
   coef[,dim(coef)[2]]=coef_$current
   names(coef)[dim(coef)[2]] = coef_name
   coef_$current = c(999)
-  
+
   write.table(coef,'results\\coef_bart.txt', sep = ";", row.names = FALSE)
   saveRDS(coef_, coef_name)
 }
@@ -152,12 +138,11 @@ if(RUN_CATE){
 
 
 for(i in 1:length(filenames)){
-  
+
   data = read.table(paste('data/',filenames[i],sep=''), sep = ';', header = T)
   data <- data[sample(nrow(data),replace=FALSE),] #shuffle data
   cat('\n')
   cat(filenames[i])
-  cat(dim(data)) 
-  
-  }
+  cat(dim(data))
 
+  }

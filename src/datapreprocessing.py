@@ -14,11 +14,7 @@ import sys
 import os
 from scipy import stats
 import random as r
-
-#sys.path.append(path+'//extra')
-
 import train as models
-
 import allel #http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
 
 def load_GE(filename1, filename2):
@@ -130,6 +126,12 @@ def cgc(path):
     return dgenes
 
 def data_norm(data1):
+    '''
+    normalized data x- mean/sd
+    input: dataset to be normalized
+    output: normalized dataset
+
+    '''
     data1o = np.zeros(data1.shape)
     data1o[:,0] = data1.iloc[:,0]
 
@@ -147,36 +149,36 @@ def data_norm(data1):
     data1o.columns = data1.columns
     return data1o
 
-#simulation
 def sim_load_vcf_to_h5(vcf_path,h5_path):
+    '''
+    transform data from vcf to h5
+    input: paths
+    output: new file on h5_path
+    '''
     #download ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
     #Reference: http://alimanfoo.github.io/2016/06/10/scikit-allel-tour.html
     #Example: http://alimanfoo.github.io/2017/06/14/read-vcf.html
-    #Worked example: human 1000 genomes phase 3
     #vcf_path = 'C://Users//raque//Documents//GitHub//ParKCa//data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz'
     #h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
     allel.vcf_to_hdf5(vcf_path, h5_path, fields='*', overwrite=True)
 
 def sim_load_h5_to_PCA(h5_path):
+    '''
+    load dataset from h5 format file, remove non-informative columns,
+    fit a PCA
+    input: path file
+    output:PCA coordenates
+    '''
     callset = h5py.File(h5_path, mode='r')
-
     #Reference: http://alimanfoo.github.io/2015/09/28/fast-pca.html
-    #g = allel.GenotypeChunkedArray(callset['calldata']['genotype'])
     g = allel.GenotypeChunkedArray(callset['calldata/GT'])
-    #g
-
     ac = g.count_alleles()[:]
-    #ac
 
     # remove singletons and multiallelic SNPs. Singletons are not informative for PCA,
-    #np.count_nonzero(ac.max_allele() > 1)
-    #np.count_nonzero((ac.max_allele() == 1) & ac.is_singleton(1))
     flt = (ac.max_allele() == 1) & (ac[:, :2].min(axis=1) > 1)
     gf = g.compress(flt, axis=0)
-    #gf
     # transform the genotype data into a 2-dimensional matrix where each cell has the number of non-reference alleles per call
     gn = gf.to_n_alt()
-    #gn
 
     #Removing correlated features (LD pruning): each SNP is a feature, SNPs tend to be correlated
     #It takes a while 5:15-
@@ -198,12 +200,24 @@ def sim_load_h5_to_PCA(h5_path):
     return coords1
 
 def sim_dataset(G0,lambdas,n_causes,n_units, randseed):
+    '''
+    calculate the target Y based on the simulated dataset
+
+    input:
+    G0: level 0 data
+    lambdas: unknown groups
+    n_causes and n_units: int, dimensions of the dataset
+    output:
+    G: G0 in pandas format with colnames that indicate if its a cause or not
+    tc: causal columns
+    y01: binary target
+
+    '''
     np.random.seed(randseed)
     tc_ = npr.normal(loc = 0 , scale=0.5*0.5, size=int(n_causes*0.1))
-    tc = np.hstack((np.repeat(0.0,n_causes-int(n_causes*0.1)),tc_))
-    r.shuffle(tc)   
-    #True causes
-    
+    tc = np.hstack((np.repeat(0.0,n_causes-int(n_causes*0.1)),tc_))    #True causes
+    tc.shuffle(tc)
+
     tau =  stats.invgamma(3,1).rvs(3, random_state = 99)
     sigma = np.zeros(n_units)
     sigma = [tau[0] if lambdas[j]==0 else sigma[j] for j in range(len(sigma))]
@@ -211,22 +225,22 @@ def sim_dataset(G0,lambdas,n_causes,n_units, randseed):
     sigma = [tau[2] if lambdas[j]==2 else sigma[j] for j in range(len(sigma))]
     y0 = np.array(tc).reshape(1,-1).dot(np.transpose(G0))
     l1 = lambdas.reshape(1,-1)
-    y1 = (np.sqrt(np.var(y0))/np.sqrt(0.4))*(np.sqrt(0.4)/np.sqrt(np.var(l1)))*l1  
+    y1 = (np.sqrt(np.var(y0))/np.sqrt(0.4))*(np.sqrt(0.4)/np.sqrt(np.var(l1)))*l1
     e = npr.normal(0,sigma,n_units).reshape(1,-1)
     y2 =  (np.sqrt(np.var(y0))/np.sqrt(0.4))*(np.sqrt(0.2)/np.sqrt(np.var(e)))*e
     y = y0 + y1 + y2
     p = 1/(1+np.exp(y0 + y1 + y2))
-    
-    #del y0, y1, y2,y
+
     y01 = np.zeros(len(p[0]))
     y01 = [npr.binomial(1,p[0][i],1)[0] for i in range(len(p[0]))]
     y01 = np.asarray(y01)
-    #568 1's
-    print('Outcome:',sum(y01),' of ' ,len(y01))
     G = add_colnames(G0,tc)
     return G, tc,y01
 
 def add_colnames(data, truecauses):
+    '''
+    from matrix to pandas dataframe, adding colnames
+    '''
     colnames = []
     causes = 0
     noncauses = 0
@@ -244,7 +258,7 @@ def add_colnames(data, truecauses):
 
 def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D, randseed):
     '''
-    #From adapted from Deconfounder's authors
+    #Adapted from Deconfounder's authors
     generate the simulated data
     input:
         - Fs, ps, n_hapmapgenes: not used here
@@ -254,11 +268,6 @@ def sim_genes_TGP(Fs, ps, n_hapmapgenes, n_causes, n_units, S, D, randseed):
     '''
     np.random.seed(randseed)
 
-    #Fs and ps [] (not used in this version)
-    #n_hapmapgenes also not used
-    #n_causes, n_units, S
-    #pca = PCA(n_components=2, svd_solver='full')
-    #S = expit(pca.fit_transform(hapmap_gene_clean))
     S = expit(S)
     Gammamat = np.zeros((n_causes, 3))
     Gammamat[:,0] = 0.2*npr.uniform(size=n_causes) #0.45
@@ -290,11 +299,8 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
     #ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/hd_genotype_chip/
     vcf_path = "data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.vcf.gz"
     h5_path = 'data_s//ALL.chip.omni_broad_sanger_combined.20140818.snps.genotypes.h5'
-    #sim_load_vcf_to_h5(vcf_path,h5_path)
-    #S = dp.sim_load_h5_to_PCA(h5_path)
     S = np.loadtxt('data_s//tgp_pca2.txt', delimiter=',')
-    
-    
+
     sim_y = []
     sim_tc = []
     for sim in range(SIMULATIONS):
@@ -303,9 +309,6 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
         G = add_colnames(G1,tc)
         del G0,G1
 
-        #train_s = np.asmatrix(G)
-        #j, v = G.shape
-        #print(name,': ' ,train_s.shape[0])
         G.to_pickle('data_s//snp_simulated1_'+str(sim)+'.txt')
         sim_y.append(y01)
         sim_tc.append(tc)
@@ -320,38 +323,52 @@ def generate_samples(SIMULATIONS,n_units,n_causes):
     sim_y.to_pickle('data_s//snp_simulated1_y01.txt')
     sim_tc.to_pickle('data_s//snp_simulated1_truecauses.txt')
 
-
-#join simulation 
 def join_simulation(path, version):
-    #path = 'results\\simulations\\cevae_output_sim0_'
+    '''
+    the simulations were break down in several files;
+    this function join the files from a same simulated dataset
+    input: path files and dataset version
+    output: a unique file with the cate of all treatments in a simulated dataset
+
+    '''
+
     letter = ['a','b','c','d','e','f','g','h']
     files = []
-    
-    for l in letter: 
+
+    for l in letter:
         check = path+'cevae_output_sim'+str(version)+'_'+l+'.txt'
-        if os.path.isfile(check): 
+        if os.path.isfile(check):
             files.append(path+'cevae_output_sim'+str(version)+'_'+l+'.txt')
-    
+
     sim = pd.read_pickle(files[0])
-    if len(files) >= 1: 
+    if len(files) >= 1:
         for i in range(len(files)-1):
             #sim0 = sim0.iloc[0:3599,:]
             part = pd.read_pickle(files[i+1])
-            sim = pd.concat([sim,part],axis = 0)    
-       
+            sim = pd.concat([sim,part],axis = 0)
+
     sim.reset_index(inplace = True,drop = True)
     sim['cate'].fillna(0, inplace = True)
     return sim
 
-#level1 data from simulations
-def sim_level1data(done,tc,y01,roc_name):
+def sim_level1data(simulations,tc,y01,roc_name):
+    '''
+    create a dataframe with the roc curves of the DA, and join in a single file the simulations results
+
+    input:
+        simulations: list with indices of simulated datasets
+        tc: matrix with true causes. Col 1 has the true causes of simulation 1
+        y01: matrix with targets. Col 1 has the targets of simulation 1
+        roc_name: name file
+    output: a file with the roc_curve data of the DA model is saved at roc_name path
+    '''
     roc_table = pd.DataFrame(columns=['learners', 'fpr','tpr','auc'])
-    for i in done:
+    for i in simulations:
         sim = 'sim_'+str(i)
         tc_sim1 = tc[sim]
         tc_sim1_bin = [1 if i != 0 else 0 for i in tc_sim1]
         y01_sim1 = y01[sim]
-        
+
         train = pd.read_pickle('data_s\\snp_simulated1_'+str(i)+'.txt')
         coef, coef_continuos, roc, coln = models.deconfounder_PPCA_LR(np.asmatrix(train),train.columns,y01_sim1,sim,15,10)
         #Join CEVAE results
@@ -360,5 +377,5 @@ def sim_level1data(done,tc,y01,roc_name):
         #Create dataset
         data = pd.DataFrame({'cevae':cevae['cate'],'coef':coef,'y_out':tc_sim1_bin, 'coef_c':coef_continuos,'y_c':tc_sim1})
         data.to_csv('results\\level1data_sim_'+str(i)+'.txt', sep=';')
-    
+
     roc_table.to_pickle('results//'+roc_name+'.txt')

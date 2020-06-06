@@ -5,7 +5,7 @@ __pycache__/
 plots_cevae/
 results/simulations/
 results/
-
+send/
 .Rhistory
 .rds
 .png

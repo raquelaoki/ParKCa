@@ -6,9 +6,6 @@
 
 rm(list=ls())
 
-#RUN_F1_PRECISION_RECALL_SCORE = TRUE
-
-
 require(ggplot2)
 require(RColorBrewer)
 require(ggrepel)
@@ -21,25 +18,22 @@ require(Rmisc)
 library(reshape2)
 setwd("~/GitHub/ParKCa/results")
 
-
-#if(CREATE_CGC_BASELINES){
 CREATE_CGC_BASELINES <- function(){
   #References
   #data downloaded from https://www.pnas.org/content/113/50/14330
-  m_2020 = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 1)
-  m_tuson = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 2)
-  m_mutsigcv = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 3)
-  m_oncodriveFM = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 4)
-  m_oncodriveClust = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 5)
-  m_oncodriveFML = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 6)
-  m_ActiveDriver = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 7)
-  m_Music = read.xlsx("~\\Documents\\GitHub\\project\\data\\driver_genes_baselines.xlsx",sheet = 8)
+  m_2020 = read.xlsx("~\\Documents\\GitHub\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 1)
+  m_tuson = read.xlsx("~\\Documents\\GitHub\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 2)
+  m_mutsigcv = read.xlsx("~\\Documents\\GitHub\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 3)
+  m_oncodriveFM = read.xlsx("~\\Documents\\GitHub\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 4)
+  m_oncodriveClust = read.xlsx("~\\Documents\\GitHub\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 5)
+  m_oncodriveFML = read.xlsx("~\\Documents\\GitHub\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 6)
+  m_ActiveDriver = read.xlsx("~\\Documents\\GitHub\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 7)
+  m_Music = read.xlsx("~\\Documents\\GitHub\\project\\ParKCa\\data\\driver_genes_baselines.xlsx",sheet = 8)
 
-  cgc = read.table("~\\Documents\\GitHub\\project\\data\\cancer_gene_census.csv", header = T,sep=',')[,c(1,2)]
+  cgc = read.table("~\\Documents\\GitHub\\ParKCa\\data\\cancer_gene_census.csv", header = T,sep=',')[,c(1,2)]
 
   #from baseline paper
   q = 0.1
-
   m_2020_q = subset(m_2020, m_2020[,11]<=q) #197
   m_tuson_q = subset(m_tuson, TUSON.combined.qvalue.TSG<=q) #194
   m_mutsigcv_q = m_mutsigcv[m_mutsigcv$q<q,] #158
@@ -101,13 +95,18 @@ CREATE_CGC_BASELINES <- function(){
   baselines$recall = baselines$driver_genes/dim(cgc)[1]
   baselines$f1_ = 2*baselines$precision*baselines$recall/ (baselines$precision+baselines$recall)
 
-  write.table(baselines,'~\\Documents\\GitHub\\project\\results\\cgc_baselines.txt',
+  write.table(baselines,'~\\Documents\\GitHub\\ParKCa\\results\\cgc_baselines.txt',
               row.names = FALSE, sep = ';')
 
 }
 
-
+#Code to read python output in pickle file
 source_python("pickle_reader.py")
+
+#----------#----------#----------#----------#----------#----------#----------#
+#     ROC plots - real-world dataset 
+#----------#----------#----------#----------#----------#----------#----------#
+
 roc_da <- read_pickle_file('roc_15_beforefilter.txt')
 roc_bart <- read_pickle_file('roc_bart.txt')
 
@@ -120,27 +119,25 @@ data$Learner = 'DA'
 data$auc = roc_da[[4]][i]
 
 for( i in 2:9){
-aux = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
-names(aux)=  c('fpr','tpr')
-aux$Learner = 'DA'
-aux$sim = roc_da[[1]][i]
-aux$auc = roc_da[[4]][i]
-data = rbind(data,aux)
+  aux = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+  names(aux)=  c('fpr','tpr')
+  aux$Learner = 'DA'
+  aux$sim = roc_da[[1]][i]
+  aux$auc = roc_da[[4]][i]
+  data = rbind(data,aux)
 }
 
 for( i in 1:3){
-aux = data.frame(roc_bart[[2]][i][[1]],roc_bart[[3]][i][[1]])
-names(aux)=  c('fpr','tpr')
-aux$Learner = 'BART'
-aux$sim = roc_bart[[1]][i]
-aux$auc = roc_bart[[4]][i]
-data = rbind(data,aux)
+  aux = data.frame(roc_bart[[2]][i][[1]],roc_bart[[3]][i][[1]])
+  names(aux)=  c('fpr','tpr')
+  aux$Learner = 'BART'
+  aux$sim = roc_bart[[1]][i]
+  aux$auc = roc_bart[[4]][i]
+  data = rbind(data,aux)
 }
 
 data$sim = gsub('dappcalr_15_','DA+',data$sim)
 data$sim = gsub('bart_','BART+',data$sim)
-
-#data$sim = paste(data$sim,'(AUC=',round(data$auc,1),')',sep='')
 
 #type 
 data$type = 'Learners Kept'
@@ -149,7 +146,7 @@ data$type[data$sim=='DA+ESCA'] = 'Learners removed'
 data$type[data$sim=='DA+PAAD'] = 'Learners removed'
 data$type[data$sim=='DA+SARC'] = 'Learners removed'
 
-
+#Figure 2a
 g0_exp <- ggplot(data=data, aes(x=fpr, y=tpr, group=sim, col = type)) +
   geom_line(aes(linetype=type),size=1)+xlim(0,1)+ylim(0,1)+
   scale_color_manual(values = c('#009E73','#999999'))+
@@ -165,9 +162,194 @@ g0_exp <- ggplot(data=data, aes(x=fpr, y=tpr, group=sim, col = type)) +
         text = element_text(size=13))+
   labs(color='',linetype='')
 
+#Extra plots on Sup. Material 
+extra1 = subset(data, sim =='BART+all' | sim =='BART+FEMALE'  | sim =='BART+MALE')
+ex1 <- ggplot(data=extra1, aes(x=fpr, y=tpr, group=sim, col = sim)) +
+  geom_line(aes(linetype=sim),size=1)+xlim(0,1)+ylim(0,1)+
+  scale_color_manual(values = c('#00ebab','#00523b','#009E73'))+
+  geom_abline(intercept = 0, slope = 1, color="#999999", linetype="solid")+
+  theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+  theme(legend.position = c(0.75,0.2),
+        legend.background= element_rect(fill="white",colour ="white"),
+        legend.text = element_text(size=10),
+        legend.key.size = unit(0.3,'cm'),
+        text = element_text(size=10))+
+  labs(color='',linetype='')
+ex1
+
+extra2 = subset(data, sim =='DA+all' | sim =='DA+FEMALE'  | sim =='DA+MALE')
+ex2 <- ggplot(data=extra2, aes(x=fpr, y=tpr, group=sim, col = sim)) +
+  geom_line(aes(linetype=sim),size=1)+xlim(0,1)+ylim(0,1)+
+  scale_color_manual(values = c('#00ebab','#00523b','#009E73'))+
+  geom_abline(intercept = 0, slope = 1, color="#999999", linetype="solid")+
+  theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+  theme(legend.position = c(0.75,0.2),
+        legend.background= element_rect(fill="white",colour ="white"),
+        legend.text = element_text(size=10),
+        legend.key.size = unit(0.3,'cm'),
+        text = element_text(size=10))+
+  labs(color='',linetype='')
+ex2
+
+extra3 = subset(data, sim =='DA+LGG' | sim =='DA+SKCM')
+ex3 <- ggplot(data=extra3, aes(x=fpr, y=tpr, group=sim, col = sim)) +
+  geom_line(aes(linetype=sim),size=1)+xlim(0,1)+ylim(0,1)+
+  scale_color_manual(values = c('#00ebab','#00523b','#009E73'))+
+  geom_abline(intercept = 0, slope = 1, color="#999999", linetype="solid")+
+  theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+  theme(legend.position = c(0.75,0.2),
+        legend.background= element_rect(fill="white",colour ="white"),
+        legend.text = element_text(size=10),
+        legend.key.size = unit(0.3,'cm'),
+        text = element_text(size=10))+
+  labs(color='',linetype='')
+ex3
+
+extra4 = subset(data, sim =='DA+LIHC' | sim =='DA+ESCA'|sim =='DA+PAAD' | sim =='DA+SARC')
+ex4 <- ggplot(data=extra4, aes(x=fpr, y=tpr, group=sim, col = sim)) +
+  geom_line(aes(linetype=sim),size=1)+xlim(0,1)+ylim(0,1)+
+  scale_color_manual(values = c('#00ebab','#008560','#00523b','#00b886'))+
+  geom_abline(intercept = 0, slope = 1, color="#999999", linetype="solid")+
+  theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+  theme(legend.position = c(0.75,0.2),
+        legend.background= element_rect(fill="white",colour ="white"),
+        legend.text = element_text(size=10),
+        legend.key.size = unit(0.3,'cm'),
+        text = element_text(size=10))+
+  labs(color='',linetype='')
+ex4
+
+#Comparing K's 
+roc_da15 <- read_pickle_file('roc_15_beforefilter.txt')
+roc_da30 <- read_pickle_file('roc_30_beforefilter.txt')
+roc_da45 <- read_pickle_file('roc_45_beforefilter.txt')
+
+i = 1 #from 1 to 10
+#data15 = data.frame(roc_da15[[2]][i][[1]],roc_da15[[3]][i][[1]])
+#data30 = data.frame(roc_da30[[2]][i][[1]],roc_da30[[3]][i][[1]])
+#data45 = data.frame(roc_da45[[2]][i][[1]],roc_da45[[3]][i][[1]])
+
+#names(data15) = names(data30) = names(data45)  = c('fpr','tpr')
+data15 = data.frame('sim' = roc_da15[[1]][i])
+data30 = data.frame('sim' = roc_da30[[1]][i])
+data45 = data.frame('sim' = roc_da15[[1]][i])
+
+data15$Learner = 'DA'
+data30$Learner = 'DA'
+data45$Learner = 'DA'
+
+data15$auc = roc_da15[[4]][i]
+data30$auc = roc_da30[[4]][i]
+data45$auc = roc_da45[[4]][i]
+
+for( i in 2:9){
+  #aux15 = data.frame(roc_da15[[2]][i][[1]],roc_da15[[3]][i][[1]])
+  #aux30 = data.frame(roc_da30[[2]][i][[1]],roc_da30[[3]][i][[1]])
+  #aux45 = data.frame(roc_da45[[2]][i][[1]],roc_da45[[3]][i][[1]])
+
+  #names(aux15)= names(aux30) = names(aux45) =c('fpr','tpr')
+  aux15 = aux30 = aux45 = data.frame('Learner' = 'DA')
+
+  aux15$sim = roc_da15[[1]][i]
+  aux30$sim = roc_da30[[1]][i]
+  aux45$sim = roc_da45[[1]][i]
+
+  aux15$auc = roc_da15[[4]][i]
+  aux30$auc = roc_da30[[4]][i]
+  aux45$auc = roc_da45[[4]][i]
+
+  data15 = rbind(data15,aux15)
+  data30 = rbind(data30,aux30)
+  data45 = rbind(data45,aux45)
+}
+
+
+data15$Learner= '15'
+data30$Learner= '30' 
+data45$Learner= '45'
+
+data = rbind(data15, data30, data45)
+data_s = summarySE(data, measurevar="auc", groupvars=c("Learner"))
+  
+ggplot(data_s, aes(x=Learner, y=auc)) + 
+  geom_bar(position=position_dodge(),  fill = '#009E73', stat="identity") + 
+  geom_errorbar(aes(ymin=auc-se, ymax=auc+se),width=.2, position=position_dodge(.9))+
+  theme_minimal()+xlab('Number of the latent variables (k)')+ylab('Area Under the Curve (AUC)')
+
+
+#----------#----------#----------#----------#----------#----------#----------#
+#     ROC plots - simulation 
+#----------#----------#----------#----------#----------#----------#----------#
+
+roc_da <- read_pickle_file('sim_roc_simulations.txt')
+roc_cevae <- read_pickle_file('roc_cevae.txt')
+
+#aux = roc_da[[2]][1] #column, row
+i = 1 #from 1 to 10
+data = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+names(data) = c('fpr','tpr')
+data$sim = paste(i,'da',sep='')
+data$Learner = 'DA'
+
+for( i in 2:10){
+  aux = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
+  names(aux)=  c('fpr','tpr')
+  aux$Learner = 'DA'
+  aux$sim = paste(i,'da',sep='')
+  data = rbind(data,aux)
+}
+
+for( i in 1:10){
+  aux = data.frame(roc_cevae[[2]][i][[1]],roc_cevae[[3]][i][[1]])
+  names(aux)=  c('fpr','tpr')
+  aux$Learner = 'CEVAE'
+  aux$sim = paste(i,'cevae',sep='')
+  data = rbind(data,aux)
+}
+
+#Figure 2b
+g0_sim<- ggplot(data=data, aes(x=fpr, y=tpr, group=sim) ) +
+  geom_line(color = '#009E73')+xlim(0,1)+ylim(0,1)+
+  scale_linetype_manual(values=c('solid'))+
+  geom_abline(intercept = 0, slope = 1, color="#000000", 
+              linetype="solid")+
+  theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+  theme(legend.position = c(0.85,0.3),
+        legend.background= element_rect(fill="white",colour ="white"),
+        legend.text = element_text(size=13),
+        legend.key.size = unit(0.7,'cm'),
+        text = element_text(size=13))
+
+
+for(i in 1:10){
+  i = 1+i
+  colnames = paste(i,c('cevae','da'),sep='')
+  extra = subset(data, sim == colnames[1]|sim == colnames[2])
+  extra$sim[extra$sim==colnames[1]] = 'CEVAE'
+  extra$sim[extra$sim==colnames[2]] = 'DA'
+  ggplot(data=extra, aes(x=fpr, y=tpr, group=sim, color = sim) ) +
+    xlim(0,1)+ylim(0,1)+ geom_line(aes(linetype=sim),size=1)+
+    scale_color_manual(values = c('#00ebab','#00523b'))+
+    geom_abline(intercept = 0, slope = 1, color="#999999", linetype="solid")+
+    theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
+    theme(legend.position = c(0.85,0.3),
+          legend.background= element_rect(fill="white",colour ="white"),
+          legend.text = element_text(size=10),
+          legend.key.size = unit(0.7,'cm'),
+          text = element_text(size=10))+
+    labs(color=paste('Simulation',i,sep=' '),linetype=paste('Simulation',i,sep=' '))
+} 
+
+
+#----------#----------#----------#----------#----------#----------#----------#
+#     Meta-learner evaluation - real-world dataset 
+#----------#----------#----------#----------#----------#----------#----------#
+
 baselines = read.table('cgc_baselines.txt',header = TRUE, sep=';')
 experime1 = read.table('eval_metalevel1c.txt', header = TRUE, sep = ';')
 experime0 = read.table('eval_metalevel0.txt', header = TRUE, sep = ';')
+
+#Data prep
 names(baselines)[6] = 'f1'
 names(experime1)[2] = names(experime0)[2] = names(baselines)[1]
 baselines$method[baselines$method=='OncodriveClust']='ODC'
@@ -177,10 +359,10 @@ baselines$method[baselines$method=='oncodriveFM']='ODFM'
 baselines$method[baselines$method=='MuSiC']='M'
 
 
+#Figure 3a: Precision x Recall: Learners, Meta-learners and random model
 g1data = rbind(experime0[,c(2,3,4,7)],experime1[,c(2,3,4,7)])
 g1data$name = c(rep('Learner',dim(experime0)[1]), rep('ParKCa',dim(experime1)[1]))
 g1data$name[g1data$method=='random']='Random'
-
 
 g1_exp <- ggplot(g1data,aes(x=precision ,y=recall,color=name,shape=name))+
 geom_point(size=3)+theme_minimal() +
@@ -196,13 +378,13 @@ theme(legend.position = c(0.85,0.8),
       text = element_text(size=13))
 
 
+#Figure 4a: Precision x Recall - meta-learners and baselines
 sub =   experime1[,c(2,8,9,6)]
 names(sub) = names(baselines)[c(1,4,5, 6)]
 g2data = rbind(baselines[,c(1,4,5, 6)],sub)
 g2data$name = c(rep('baselines',dim(baselines)[1]), rep('meta-learners',dim(experime1)[1]))
 g2data$name[g2data$method=='random']='random'  
 g2data$F1 = round(g2data$f1,2)
-
 
 g2data$method[g2data$method=='rf']= 'RF'
 g2data$method[g2data$method=='lr']= 'LR'
@@ -235,17 +417,8 @@ g2_exp <- ggplot(g2data,aes(x=precision ,y=recall,color=name,shape=name))+
         legend.margin = margin(-0.5,0,0,0, unit="cm"))
 g2_exp
 
-# g2data$method[g2data$method=='RF']='Random Forest(RF)'
-#  g2data$method[g2data$method=='LR']='Logistic Regression(LR)'
-#  g2data$method[g2data$method=='ODFML']='OncodriveFML(ODFML)'
-#  g2data$method[g2data$method=='Adapter']='Adapter-PU'
-#  g2data$method[g2data$method=='M']='MuSiC (M)'
-#  g2data$method[g2data$method=='E']='Ensemble (E)'
-#  g2data$method[g2data$method=='AD']='ActiveDriver (AD)'
-#  g2data$method[g2data$method=='ODC']='OncodriveClust (ODC)'
-#  g2data$method[g2data$method=='ODFM']='OncoDriveFM (ODFM)'
 
-
+#Figure 4b: F1-score metalearners and baselines 
 g2data = g2data[order(g2data$F1,decreasing=TRUE),]
 aux = as.character(g2data$F1)
 aux[aux=='0.2']='0.20'
@@ -254,9 +427,7 @@ aux[aux=='0.1']='0.10'
 g2data$method2 = paste(g2data$method, ' (',aux,')',sep='') 
 g2data <- within(g2data,method2<-factor(method2,levels=g2data$method2)) 
 
-
 g3_exp <- ggplot(g2data,aes(method2,F1,fill=name))+geom_bar(stat='identity')+
-  #geom_text(aes(label=F1), hjust=2, color="black", size=3.5)+
   theme_minimal()+labs(fill='')+
   theme(text = element_text(size=11), 
         legend.position = c(0.8, 0.8),
@@ -266,49 +437,11 @@ g3_exp <- ggplot(g2data,aes(method2,F1,fill=name))+geom_bar(stat='identity')+
   scale_fill_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
   scale_color_manual(values = c("#999999",'#56B4E9',"#E69F00"))+
   xlab('')+ylab('F1-score')+coord_flip()
-  #labs(caption = 'd.Full Set (level 1 data)')
 g3_exp
   
-
-source_python("pickle_reader.py")
-roc_da <- read_pickle_file('sim_roc_simulations.txt')
-roc_cevae <- read_pickle_file('roc_cevae.txt')
-
-#aux = roc_da[[2]][1] #column, row
-i = 1 #from 1 to 10
-data = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
-names(data) = c('fpr','tpr')
-data$sim = paste(i,'da',sep='')
-data$Learner = 'DA'
-
-for( i in 2:10){
-  aux = data.frame(roc_da[[2]][i][[1]],roc_da[[3]][i][[1]])
-  names(aux)=  c('fpr','tpr')
-  aux$Learner = 'DA'
-  aux$sim = paste(i,'da',sep='')
-  data = rbind(data,aux)
-}
-
-for( i in 1:10){
-  aux = data.frame(roc_cevae[[2]][i][[1]],roc_cevae[[3]][i][[1]])
-  names(aux)=  c('fpr','tpr')
-  aux$Learner = 'CEVAE'
-  aux$sim = paste(i,'cevae',sep='')
-  data = rbind(data,aux)
-}
-
-  
-g0_sim<- ggplot(data=data, aes(x=fpr, y=tpr, group=sim) ) +
-  geom_line(color = '#009E73')+xlim(0,1)+ylim(0,1)+
-  scale_linetype_manual(values=c('solid'))+
-  geom_abline(intercept = 0, slope = 1, color="#000000", 
-              linetype="solid")+
-  theme_minimal()+xlab('False Positive Rate')+ylab('True Positive Rate')+
-  theme(legend.position = c(0.85,0.3),
-        legend.background= element_rect(fill="white",colour ="white"),
-        legend.text = element_text(size=13),
-        legend.key.size = unit(0.7,'cm'),
-        text = element_text(size=13))
+#----------#----------#----------#----------#----------#----------#----------#
+#     Meta-learner evaluation - simulated datasets
+#----------#----------#----------#----------#----------#----------#----------#
 
 level0 = read.table('eval_sim_metalevel0_prob.txt', sep=';', header = T)
 level1 = read.table('eval_sim_metalevel1_prob.txt', sep=';', header = T)
@@ -317,7 +450,6 @@ level1c = read.table('eval_sim_metalevel1c_prob.txt', sep=';', header = T)
 level1c = subset(level1c, !is.na(precision))
 pehe = read.table('eval_sim_pehe_prob.txt', sep=';', header = T)
 
-#NAMES
 level0$metalearners[level0$metalearners=='cevae'] = 'CEVAE'
 level0$metalearners[level0$metalearners=='coef'] = 'DA'
 
@@ -338,8 +470,6 @@ level1c$metalearners[level1c$metalearners=='rf'] = 'RF'
 level1c$metalearners[level1c$metalearners=='upu'] = 'UPU'
 level1c$metalearners[level1c$metalearners=='nn'] = 'NN'
 
-#precision x score plot testing 
-#AVerage Values 
 bdg0 = rbind(level0[,c(2,3,4)],level1[,c(2,3,4)])
 p1a = data.frame(tapply(bdg0$precision,bdg0$metalearners, mean))
 p1b = data.frame(tapply(bdg0$recall,bdg0$metalearners, mean))
@@ -360,9 +490,10 @@ p1$type = 'ParCKa'
 p1$type[p1$Method=='CEVAE'|p1$Method=='DA']='Learner'
 p1$type[p1$Method=='Random']='Random'
 
-#SUPPLEMENTAL MATERIAL SHOULD HAVE IT: 
-p1
+require(xtable)
+xtable(p1)
 
+#Figure 3b: F1-score  x % known causes for meta-learners and leaners
 aux = rbind(level1[,c(2,7,11)], level0[,c(2,7,9)])
 level1_s <- melt(aux, id.vars = c("metalearners",'prob'))
 level1_s = summarySE(level1_s, measurevar="value", groupvars=c("variable","metalearners",'prob'))
@@ -375,9 +506,7 @@ level1_s$F1 = as.character(round(level1_s$value,2))
 level1_s = level1_s[order(level1_s$value,decreasing=TRUE),]
 level1_s <- within(level1_s, metalearners<-factor( metalearners,levels= unique(level1_s$metalearners))) 
 
-
 level1_s_testing = subset(level1_s, variable=='f1_')
-#level1_s_full = subset(level1_s, variable=='f1')
 
 g2_sim<- ggplot(level1_s_testing,aes(x = prob, y =value,color=metalearners, shape = metalearners))+
   geom_line(size=1) + geom_point(size=2.5)+ 
@@ -395,10 +524,9 @@ g2_sim<- ggplot(level1_s_testing,aes(x = prob, y =value,color=metalearners, shap
   xlab('Percentage known causes')+ylab('Average F1-score')+
   labs(color='',shape='')
 g2_sim
-t = subset(level1_s_testing, metalearners=="NN")
-t[order(t$prob),]
 
 
+#Figue 3c: pehe x % known causes x (all causes and known causes) for meta-learner x learners 
 pehe2 <- melt(pehe[,c(2,3,4,5,7)], id.vars = c("method",'prob'))
 pehe2$variable = as.character(pehe2$variable)
 pehe2$variable[pehe2$variable=='pehe_noncausal'] = 'Non-causal Variables'
@@ -409,13 +537,7 @@ pehe_s <- summarySE(pehe2, measurevar="value", groupvars=c("variable","method",'
 pehe_s = subset(pehe_s, method!='Meta-learner (Full set)')
 pehe_s$method[pehe_s$method=='Meta-learner (Testing set)'] = 'ParKCa'  
 pehe_s = subset(pehe_s, variable != 'Non-causal Variables')
-#aux = rbind(level1c[,c(2,6,7)], level0[,c(2,6,7)])
-#level1c_s <- melt(aux, id.vars = c("metalearners"))
-#level1c_s = summarySE(level1c_s, measurevar="value", groupvars=c("variable","metalearners"))
 
-#violin is an option
-
-#TABLE MAYBE, different scales
 pehe_s_causal = subset(pehe_s, variable=='Causal Variables' )
 g3_exp <- ggplot(pehe_s_causal,aes(x = prob, y =value,color=method, shape = method))+
   geom_line(size=1) + geom_point(size=2.5)+ 
