@@ -79,8 +79,7 @@ qav
 ```
 ### 5. RUNNING EXPERIMENTS 
 - main.py: 
---- real-world application: after running script_realdata_preparation.R and bart.R, this code run the DA learner, join the results, add the known causes from cgc, 
-    run the meta-learners and save the evaluation outputs. 
---- simulatation: run the dp.generate_samples(sim,n_units, n_causes) and cevae.ipynb. Then, this code run the DA learner, join the results, add proportions of known causes, 
-    run the meta-learners and save the evaluation outputs. 
+
+* real-world application: after running script_realdata_preparation.R and bart.R, this code run the DA learner, join the results, add the known causes from cgc, run the meta-learners and save the evaluation outputs. 
+* simulatation: run the dp.generate_samples(sim,n_units, n_causes) and cevae.ipynb. Then, this code run the DA learner, join the results, add proportions of known causes, run the meta-learners and save the evaluation outputs. 
 
