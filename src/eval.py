@@ -308,10 +308,10 @@ def simulation_eval(nsim):
     out_metac = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','prfull','refull','version','prob'])
     out_level0 = pd.DataFrame(columns=['metalearners', 'precision','recall','auc','f1','f1_','version','prob'])
     pehe = pd.DataFrame(columns=['method','pehe_noncausal', 'pehe_causal','pehe_overall','version','prob'])
-
+    
     out_diversity = []
     out_diversity_version = []
-
+    
     #proportion of known causes
     p = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 

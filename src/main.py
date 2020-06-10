@@ -8,7 +8,7 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
-path = 'C://Users//Documents//GitHub//ParKCa'
+path = 'C://Users//raque//Documents//GitHub//ParKCa'
 
 sys.path.append(path+'//src')
 sys.path.append(path+'//extra')
@@ -104,6 +104,7 @@ if EVALUATION_S:
     n_causes = 10000# 10% var
     sim = 10
 
+    #CREATE THE DATASET
     dp.generate_samples(sim,n_units, n_causes)
 
     #DA
@@ -115,7 +116,7 @@ if EVALUATION_S:
     #CEVAE IS RUN IN A NOTEBOOK
     print("DONE WITH EXPERIMENTS ON SIMULATION")
 
-    #CREATE THE DATASET
+    #learners and meta-learners
     dp.sim_level1data([0,1,2,3,4,5,6,7,8,9],tc,y01,'sim_roc_simulations')
     eval.roc_plot('results//sim_roc_simulations.txt')
     eval.simulation_eval(10)
