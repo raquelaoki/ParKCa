@@ -10,6 +10,7 @@ Causality for Computational Biology
 - script_realdata_preparation.R: real-dataset download, filtering, merging
 
 #### Example: 
+```python
 n_units = 5000
 n_variables = 10000 
 n_datasets = 10
@@ -17,6 +18,7 @@ dp.generate_samples(n_datasets,n_units, n_variables)
 #output: 10 datasets 5000 x 10000 in pickle format 'data_s//snp_simulated1_0.txt',...,'data_s//snp_simulated1_9.txt'
 #+1 dataset 5000 x 10 in pickle format with the simulated targets 'data_s//snp_simulated1_y01.txt'; col 0 has the targets of 'snp_simulated1_0.txt' dataset. 
 #+1 dataset 10000 x 10 in pickle format with the true causes 'data_s//snp_simulated1_truecauses.txt'; col 0 has the true causes of 'snp_simulated1_0.txt' dataset. 
+```
 
 
 ### 2. LEARNERS  
@@ -25,6 +27,7 @@ dp.generate_samples(n_datasets,n_units, n_variables)
 - from train.py, learners(APPLICATIONBOOL,DABOOL,path): run the DA for the application and simulated dataset
 
 #### Example: 
+```python
 train.learners(APPLICATIONBOOL=True,DABOOL=True, path = path)
 
 tcga_train_gexpression_cgc_7k_abr_HNSC.txt :  192
@@ -40,12 +43,14 @@ Pass Predictive Check: dappcalr_15_LIHC ( 0.7042992933416174 )
 F1: 0.3111111111111111 17 28
 Confusion Matrix [[51 10] [21  7]]
 #F1-score and confusion matrix to predict level 0 target (metastasis) 
+```
 
 ### 3. META-LEARNERS
 - from train.py, meta_learner(data, meta-learners, prob): run the meta-learners in the level 1 dataset + known causes. 
 If working on the real-world datset, set prob = 1.
 
 #### Example: 
+```python
 experiments = train.meta_learner(data,['rf','lr','random','upu','adapter','nn'],0.5)
 experiments 
 
@@ -60,16 +65,18 @@ experiments
 
 #precision, recall, aux, f1_ were calculated using testing set; 
 #prfull, refull, f1 were calculated using the full set.
+```
 
 ### 4.EVALUATION 
 - eval.py: ROC plots, ROC curve for learners evaluation, simulation evaluation (pehe, roc curve to find new causes, diversity, and others)
 - eval.R + pickle_reader.py: code to generate the plots in the paper 
 
 #### Example:
+```python
 qav, q_ = eval.diversity(['cevae' ],['coef'], data) #qav: average value, q_: array with the pairwise diversity
 qav
 -0.0482939868370808
-
+```
 ### 5. RUNNING EXPERIMENTS 
 - main.py: 
 --- real-world application: after running script_realdata_preparation.R and bart.R, this code run the DA learner, join the results, add the known causes from cgc, 
