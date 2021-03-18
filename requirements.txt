@@ -129,7 +129,6 @@ pathtools=0.1.2=py_1
 patsy=0.5.1=py37_0
 pexpect=4.8.0=py37_0
 pickleshare=0.7.5=py37_0
-pillow=7.1.2=py37hc826c6e_0
 pip=20.0.2=py37_1
 pluggy=0.13.1=py37_0
 pomegranate=0.12.2=py37heaa310e_0
