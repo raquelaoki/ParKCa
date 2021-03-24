@@ -2,8 +2,10 @@
 
 Causality for Computational Biology
 
+Citation:
 Aoki, Raquel, and Martin Ester. "ParKCa: Causal Inference with Partially Known Causes." Pac Symp Biocomput. 2021 ([link](https://arxiv.org/abs/2003.07952))
 
+TODO: Update train.py
 
 ## Code Instructions 
 
