@@ -3,13 +3,12 @@ import os
 import pandas as pd
 import numpy as np
 import warnings
-warnings.simplefilter("ignore")
 import time
+import random
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 path = 'C://Users//raque//Documents//GitHub//ParKCa'
-
 sys.path.append(path+'//src')
 sys.path.append(path+'//extra')
 import datapreprocessing as dp
@@ -20,12 +19,12 @@ import numpy.random as npr
 from os import listdir
 from os.path import isfile, join
 os.chdir(path)
-import random
+
 randseed = 123
 print("random seed: ", randseed)
 random.seed(randseed)
 np.random.seed(randseed)
-
+warnings.simplefilter("ignore")
 pd.set_option('display.max_columns', 500)
 
 from scipy.stats import ttest_ind,ttest_rel

@@ -1,4 +1,6 @@
 extra/
+.idea/
+.DS_store
 data/
 data_s/
 __pycache__/
