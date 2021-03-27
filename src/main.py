@@ -7,7 +7,7 @@ import time
 import random
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-import datapreprocessing as dp
+from data_code_future_repo import datapreprocessing as dp
 import CEVAE as cevae
 import bart as bart
 import deconfounder as decondouder
@@ -28,6 +28,7 @@ np.random.seed(randseed)
 warnings.simplefilter("ignore")
 pd.set_option('display.max_columns', 500)
 
+#TODO: update with main format and config.yaml
 
 SIMULATION = False
 EVALUATION_A = True
