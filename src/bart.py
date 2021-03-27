@@ -3,6 +3,7 @@ import numpy as np
 import warnings
 from bartpy.sklearnmodel import SklearnModel
 
+
 class BART():
     def __init__(self, X_train, X_test, y_train, y_test):
         super(BART, self).__init__()
@@ -49,33 +50,45 @@ class BART():
         assert isinstance(model, object)
         self.model = model
 
-
     def cate(self, TreatmentColumns, boostrap=False, b=30):
-        # TODO: implement cate
         print('CATE In progress')
+        if len(TreatmentColumns) > 50:
+            print("CATE is very time consuming - not suitable for large number of treatments")
         X = np.concatenate([self.X_train, self.X_test], axis=0)
-        # y = np.concatenate([self.y_train, self.y_test], axis=0)
         y_pred_full = self.model.predict(X)
         bart_cate = np.zeros(len(TreatmentColumns))
-
+        bart_cate_error = np.zeros(len(TreatmentColumns))
         for t, treat in enumerate(TreatmentColumns):
-            print('Col', i)
             Xi = X.copy()
             Xi[:, treat] = 1 - Xi[:, treat]
             y_pred_fulli = self.model.predict(Xi)
-            Ot1 = y_pred_full[X[:, treat] == 1]
-            Ot0 = y_pred_full[X[:, treat] == 0]
-            It1 = y_pred_fulli[Xi[:, treat] == 1]
-            It0 = y_pred_fulli[Xi[:, treat] == 0]
-            print(It1, It0, len(Y_pred_fulli))
-            print(Ot1, Ot0, len(y_pred_full))
-            print('treat filter', X[0:1, treat])
-            print('treat filter', Xi[0:1, treat])
-            # assert len(It1) + len(It0) == X_pred_fulli.shape[0], 'CATE: Wrong Dimensions'
-            # assert len(Ot1) + len(Ot0) == len(y_pred_full), 'CATE: Wrong Dimensions'
-            bart_cate[t] = np.concatenate([Ot1, It1], 0).mean() - np.concatenate([Ot0, It0], 0).mean()
-        return bart_cate
+            X_t_mean = X[:, treat].mean()
+            rows1, rows0 = [], []
+            for i, item in enumerate(X[:, treat]):
+                if item > X_t_mean:
+                    rows1.append(i)
+                else:
+                    rows0.append(i)
+            Ot1 = y_pred_full[rows1]
+            Ot0 = y_pred_full[rows0]
+            It1 = y_pred_fulli[rows0]
+            It0 = y_pred_fulli[rows1]
+            assert len(It1) + len(It0) == len(y_pred_fulli), 'CATE: Wrong Dimensions'
+            assert len(Ot1) + len(Ot0) == len(y_pred_full), 'CATE: Wrong Dimensions'
+            if not boostrap:
+                bart_cate[t] = np.concatenate([Ot1, It1], 0).mean() - np.concatenate([Ot0, It0], 0).mean()
+            else:
+                bart_cate[t],bart_cate_error[t] = boostrap_cate(np.concatenate([Ot1, It1], 0) - np.concatenate([Ot0, It0], 0), b)
 
-    def boostrap_cate(self, dif, b=30):
-        # TODO: implemente bootstrap cate
-        print('TODO',b)
+        if boostrap:
+            return bart_cate, bart_cate_error
+        else:
+            return bart_cate
+
+    def boostrap_cate(self, dif, b):
+        # TODO: test
+        bart_cate_boostrap = np.zeros(b)
+        for i in range(b):
+            dif0 = random.choice(b, int(len(dif)*0.7))
+            bart_cate_boostrap[i] = dif0.mean()
+        return bart_cate_boostrap.mean(), np.std(bart_cate_boostrap)

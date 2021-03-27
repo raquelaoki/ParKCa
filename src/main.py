@@ -7,19 +7,20 @@ import time
 import random
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-
-path = 'C://Users//raque//Documents//GitHub//ParKCa'
-sys.path.append(path+'//src')
-sys.path.append(path+'//extra')
 import datapreprocessing as dp
-#import CEVAE as cevae
+import CEVAE as cevae
+import bart as bart
+import deconfounder as decondouder
 import train as models
 import eval as eval
 import numpy.random as npr
 from os import listdir
 from os.path import isfile, join
-os.chdir(path)
+from scipy.stats import ttest_ind, ttest_rel
 
+path = 'C://Users//raque//Documents//GitHub//ParKCa'
+sys.path.append(path + '//extra')
+os.chdir(path)
 randseed = 123
 print("random seed: ", randseed)
 random.seed(randseed)
@@ -27,13 +28,11 @@ np.random.seed(randseed)
 warnings.simplefilter("ignore")
 pd.set_option('display.max_columns', 500)
 
-from scipy.stats import ttest_ind,ttest_rel
 
 SIMULATION = False
 EVALUATION_A = True
 EVALUATION_S = True
 #cuda test torch.cuda.FloatTensor(2)
-
 
 
 if EVALUATION_A:
@@ -119,3 +118,7 @@ if EVALUATION_S:
     dp.sim_level1data([0,1,2,3,4,5,6,7,8,9],tc,y01,'sim_roc_simulations')
     eval.roc_plot('results//sim_roc_simulations.txt')
     eval.simulation_eval(10)
+
+if __name__ == '__main__':
+    # main(config_path = sys.argv[1])
+    main(config_path='/content/')
