@@ -7,10 +7,15 @@ Aoki, Raquel, and Martin Ester. "ParKCa: Causal Inference with Partially Known C
 
 TODO: Update train.py
 
+## Usage of causal inference methods: 
+To use a particular method, check this tutorial.
+
+
 ## Code Instructions 
 
 ### 1. DATA PRE-PROCESSING 
 
+TODO: update
 - datapreprocessing.py: simulated dataset generation, pre-processing of cgc list, and other operations  
 - script_realdata_preparation.R: real-dataset download, filtering, merging
 
