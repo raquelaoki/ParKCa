@@ -8,7 +8,7 @@ Aoki, Raquel, and Martin Ester. "ParKCa: Causal Inference with Partially Known C
 TODO: Update train.py
 
 ## Usage of causal inference methods: 
-To use a particular method, check this tutorial.
+To use a particular method, check this [tutorial](https://github.com/raquelaoki/ParKCa/blob/new_structure/CausalInferenceMethods.md).
 
 
 ## Code Instructions 
