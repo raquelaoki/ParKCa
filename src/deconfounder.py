@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
 import warnings
-
+from scipy import sparse
 import tensorflow.compat.v1 as tf
 from tensorflow.keras import optimizers
 import tensorflow_probability as tfp
-from tensorflow_probability import distributions as tfd  # conda install -c conda-forge tensorflow-probability
+from tensorflow_probability import distributions as tfd
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
 

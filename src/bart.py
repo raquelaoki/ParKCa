@@ -2,9 +2,21 @@ import pandas as pd
 import numpy as np
 import warnings
 from bartpy.sklearnmodel import SklearnModel
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve
 
+# TODO: add flag for library not found
+"""
+if 'BART' in params['learners']:
+            try:
+                sys.path.insert(0, 'bartpy/')
+                from bartpy.sklearnmodel import SklearnModel
+            except NameError:
+                print('BART Library Missing')
+                print("Check: https://github.com/JakeColtman/bartpy")
+                sys.exit()
+                """
 
-class BART():
+class BART:
     def __init__(self, X_train, X_test, y_train, y_test):
         super(BART, self).__init__()
         self.X_train = X_train
@@ -41,7 +53,7 @@ class BART():
         thhold = self.Find_Optimal_Cutoff(self.y_train, y_train_pred)
         y_train_pred01 = [0 if item < thhold else 1 for item in y_train_pred]
         y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
-        print('... Leaner Evaluation:')
+        print('... Evaluation:')
         print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred01))
         print('...... confusion matrix: ', confusion_matrix(self.y_train, y_train_pred01).ravel())
 
