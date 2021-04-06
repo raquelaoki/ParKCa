@@ -7,4 +7,11 @@ Use as [reference](https://github.com/raquelaoki/Summer2020MultipleCauses/blob/m
 
 1. The Deconfounder Algorithm
 2. BART
-3. CEVAE
+
+```python
+from ParKCa.src.bart import BART
+model_bart = BART(X_train, X_test, y_train, y_test)
+model_bart.fit()
+```
+
+4. CEVAE
