@@ -331,20 +331,20 @@ class CEVAE():
         except_error = 0
         for i, (train_loader, test_loader, contfeats, binfeats) in enumerate(self.dataset.get_train_valid_test()):
             # train contains: X, t, y
-            try:
-                y0, y1, cevae_cate[i], y_test_pred, y_test = self.fit(train_loader, test_loader)
-                # print(y_test_pred, y_test )
-                thhold = self.Find_Optimal_Cutoff(y_test, y_test_pred)
-                y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
-                # vprint('y0 and y1',y0, y1,' predictions', y_test_pred[0:10], 'real value', y_test)
-                f1.append(f1_score(y_test, y_test_pred01))
-                fpri, tpri, _ = roc_curve(y_test, y_test_pred)
-                auc.append(roc_auc_score(y_test, y_test_pred01))
-                fpr.append(fpri)
-                tpr.append(tpri)
-            except ValueError:
-                cevae_cate[i] = np.nan
-                except_error += 1
+            #try:
+            y0, y1, cevae_cate[i], y_test_pred, y_test = self.fit(train_loader, test_loader)
+            # print(y_test_pred, y_test )
+            thhold = self.Find_Optimal_Cutoff(y_test, y_test_pred)
+            y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
+            # vprint('y0 and y1',y0, y1,' predictions', y_test_pred[0:10], 'real value', y_test)
+            f1.append(f1_score(y_test, y_test_pred01))
+            fpri, tpri, _ = roc_curve(y_test, y_test_pred)
+            auc.append(roc_auc_score(y_test, y_test_pred01))
+            fpr.append(fpri)
+            tpr.append(tpri)
+            #except ValueError:
+            #    cevae_cate[i] = np.nan
+            #    except_error += 1
 
         print('... Evaluation (average ', len(f1), ' treatments): F1 =', np.mean(f1), ' Errors:',except_error)
         # roc = {'learners': 'CEVAE',
