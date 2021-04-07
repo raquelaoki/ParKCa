@@ -21,7 +21,7 @@ from torch import optim
 import torch.distributions
 import torch.nn.functional as F
 from torch.distributions import bernoulli, normal
-=from torch.utils.data import WeightedRandomSampler
+from torch.utils.data import WeightedRandomSampler
 
 import tensorflow.compat.v1 as tf
 from tensorflow.keras import optimizers
