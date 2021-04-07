@@ -62,7 +62,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
     if TreatCols is None:
         TreatCols = list(range(X.shape[1]))
     roc_table = pd.DataFrame(columns=['learners', 'fpr', 'tpr', 'auc'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=63)
     coef_table = pd.DataFrame(columns=['causes'])
     coef_table['causes'] = ['T'+str(i) for i in range(len(TreatCols))]
     # ToDO: TreatCols implement
