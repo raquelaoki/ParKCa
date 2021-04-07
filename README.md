@@ -30,7 +30,7 @@ X, y, y01, treatement_columns, treatment_effects  = sdata_gwas.generate_samples(
 ### 2. LEARNERS
 
 The following causal inference methods were implemented:
-- BART
+- BART (very time-consuming for experiments with large number of treatments)
 - CEVAE
 - Deconfounder Algorithm
 
