@@ -254,7 +254,7 @@ class q_z_tyx(nn.Module):
         self.nh = nh
 
         # Shared layers with separated output layers
-        print('CHecking input:', dim_in)
+        # print('CHecking input:', dim_in)
         self.input = nn.Linear(dim_in, dim_h)
         # loop through dimensions to create fully con. hidden layers, add params with ModuleList
         self.hidden = nn.ModuleList([nn.Linear(dim_h, dim_h) for _ in range(nh)])
@@ -267,7 +267,7 @@ class q_z_tyx(nn.Module):
 
     def forward(self, xy, t):
         # Shared layers with separated output layers
-        print('Checking:', xy.shape)
+        # print('Checking:', xy.shape)
         x = F.elu(self.input(xy))
         for i in range(self.nh):
             x = F.elu(self.hidden[i](x))
@@ -355,7 +355,8 @@ class CEVAE():
     def fit(self, train_loader, test_loader):
         # try:
         # init networks (overwritten per replication)
-        x_dim = len(self.dataset.binfeats) + len(self.dataset.contfeats)
+        x_dim = len(self.dataset.binfeats) + len(self.dataset.contfeats)+1
+        prit('line 359', x_dim)
         # print('From initialization:', self.z_dim, len(self.dataset.binfeats))
         p_x_z_dist = p_x_z(dim_in=self.z_dim, nh=3, dim_h=self.h_dim, dim_out_bin=len(self.dataset.binfeats),
                            dim_out_con=len(self.dataset.contfeats)).cuda()
@@ -416,6 +417,7 @@ class CEVAE():
 
                 # AUXILIARY LOSS
                 # q(t|x)
+                print('line 419',batch[0].shape)
                 t_infer = q_t_x_dist(batch[0])
                 l6 = t_infer.log_prob(batch[1]).squeeze()
                 loss['Auxiliary_t'].append(l6.sum().cpu().detach().float())
