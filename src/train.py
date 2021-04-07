@@ -49,7 +49,8 @@ from cevae import CEVAE as cevae
 # from pywsl.utils.comcalc import bin_clf_err
 
 
-def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, colnamesZ=None, path_output=None, cevaeMax=500):
+def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, colnamesZ=None,
+             path_output=None, cevaeMax=500, binfeatures=None, confeatures=None):
     """
     input:
         path_output: where to save the files
@@ -135,9 +136,9 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
             cate = [item for sublist in cate for item in sublist]
         else:
             print('Not using Partitions', cevaeMax, len(range(nclinical, nclinical+len(TreatCols))))
-            treatments = range(nclinical, nclinical+len(TreatCols))
+            # treatments = range(nclinical, nclinical+len(TreatCols))
             model_cevae = cevae(X_train, X_test, y_train, y_test, TreatCols,
-                                binfeats=treatments, contfeats=colnamesZ)
+                                binfeats=binfeatures, contfeats=confeatures)
             cate = model_cevae.fit_all()
         coef_table['CEVAE'] = cate
         np.save('level1data_learnersout_cevae', coef_table)
