@@ -11,23 +11,23 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.svm import SVC
 from sklearn.metrics import roc_curve, roc_auc_score
-from sklearn import linear_model
 from sklearn import calibration
 from scipy import sparse, stats
 
 from torch.utils.data import Dataset, DataLoader
 import torch as T
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import WeightedRandomSampler
-import tensorflow.compat.v1 as tf
-from tensorflow.keras import optimizers
-import tensorflow_probability as tfp
-from tensorflow_probability import distributions as tfd  # conda install -c conda-forge tensorflow-probability
 from torch import optim
 import torch.distributions
 import torch.nn.functional as F
 from torch.distributions import bernoulli, normal
+=from torch.utils.data import WeightedRandomSampler
+
+import tensorflow.compat.v1 as tf
+from tensorflow.keras import optimizers
+import tensorflow_probability as tfp
+from tensorflow_probability import distributions as tfd  # conda install -c conda-forge tensorflow-probability
+
 
 tf.disable_v2_behavior()
 tf.enable_eager_execution()

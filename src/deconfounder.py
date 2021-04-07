@@ -6,6 +6,7 @@ from scipy import sparse, stats
 import tensorflow.compat.v1 as tf
 from tensorflow.keras import optimizers
 import tensorflow_probability as tfp
+from sklearn import linear_model
 from tensorflow_probability import distributions as tfd
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
