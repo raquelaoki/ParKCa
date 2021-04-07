@@ -332,6 +332,9 @@ class CEVAE():
         for i, (train_loader, test_loader, contfeats, binfeats) in enumerate(self.dataset.get_train_valid_test()):
             # train contains: X, t, y
             #try:
+            print(
+                'im her'
+            )
             y0, y1, cevae_cate[i], y_test_pred, y_test = self.fit(train_loader, test_loader)
             # print(y_test_pred, y_test )
             thhold = self.Find_Optimal_Cutoff(y_test, y_test_pred)
