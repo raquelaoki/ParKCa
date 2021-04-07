@@ -1,20 +1,8 @@
 import pandas as pd
 import numpy as np
 import warnings
-from bartpy.sklearnmodel import SklearnModel
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve
 
-# TODO: add flag for library not found
-"""
-if 'BART' in params['learners']:
-            try:
-                sys.path.insert(0, 'bartpy/')
-                from bartpy.sklearnmodel import SklearnModel
-            except NameError:
-                print('BART Library Missing')
-                print("Check: https://github.com/JakeColtman/bartpy")
-                sys.exit()
-                """
 
 class BART:
     def __init__(self, X_train, X_test, y_train, y_test):
@@ -25,6 +13,14 @@ class BART:
         self.y_test = np.array(y_test)
         self.model = None
         print('Running BART')
+
+        try:
+            sys.path.insert(0, 'bartpy/')
+            from bartpy.sklearnmodel import SklearnModel
+        except NameError:
+            print('BART Library Missing')
+            print("Check: https://github.com/JakeColtman/bartpy")
+            sys.exit()
 
     def Find_Optimal_Cutoff(self, target, predicted):
         """ Find the optimal probability cutoff point for a classification model related to event rate
@@ -98,7 +94,6 @@ class BART:
             return bart_cate
 
     def boostrap_cate(self, dif, b):
-        # TODO: test
         bart_cate_boostrap = np.zeros(b)
         for i in range(b):
             dif0 = random.choice(b, int(len(dif)*0.7))

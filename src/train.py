@@ -31,12 +31,7 @@ from tensorflow_probability import distributions as tfd  # conda install -c cond
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
 warnings.simplefilter("ignore")
-# sys.path.insert(0, '/content/')
 
-
-
-# import datapreprocessing as dp
-# import CEVAE as cevae
 # DA
 # Meta-leaners packages
 # https://github.com/aldro61/pu-learning (clone)
@@ -63,8 +58,6 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=63)
     coef_table = pd.DataFrame(columns=['causes'])
     coef_table['causes'] = ['T'+str(i) for i in range(len(TreatCols))]
-    # ToDO: TreatCols implement
-    # these are the columns I want to evaluate
 
     if 'DA' in LearnersList:
         print('\n\nLearner: DA')
