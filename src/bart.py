@@ -21,8 +21,8 @@ class BART:
         super(BART, self).__init__()
         self.X_train = X_train
         self.X_test = X_test
-        self.y_train = y_train
-        self.y_test = y_test
+        self.y_train = np.array(y_train)
+        self.y_test = np.array(y_test)
         self.model = None
         print('Running BART')
 
