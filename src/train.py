@@ -138,7 +138,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         else:
             print('Not using Partitions', cevaeMax, len(range(nclinical, nclinical+len(TreatCols))))
             # treatments = range(nclinical, nclinical+len(TreatCols))
-            model_cevae = cevae(X_train, X_test, y_train, y_test, TreatCols,
+            model_cevae = CEVAE(X_train, X_test, y_train, y_test, TreatCols,
                                 binfeats=binfeatures, contfeats=confeatures)
             cate = model_cevae.fit_all()
         coef_table['CEVAE'] = cate
