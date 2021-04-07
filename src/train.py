@@ -24,7 +24,6 @@ import tensorflow.compat.v1 as tf
 from tensorflow.keras import optimizers
 import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd  # conda install -c conda-forge tensorflow-probability
-from bartpy.sklearnmodel import SklearnModel
 from torch import optim
 import torch.distributions
 import torch.nn.functional as F
@@ -34,7 +33,7 @@ tf.disable_v2_behavior()
 tf.enable_eager_execution()
 warnings.simplefilter("ignore")
 # sys.path.insert(0, '/content/')
-from cevae import CEVAE as cevae
+
 
 
 # import datapreprocessing as dp
@@ -85,6 +84,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         print('Done!')
     if 'BART' in LearnersList:
         print('\n\nLearner: BART')
+        from bartpy.sklearnmodel import SklearnModel
         # model = SklearnModel(n_trees=50, n_burn=50, n_chains=1, n_jobs=1)  # Use default parameters
         # model.fit(x_snps, y)  # Fit the model
         model_bart = learner_BART(X_train, X_test, y_train, y_test)
@@ -96,6 +96,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         print('Done!')
     if 'CEVAE' in LearnersList:
         print('\n\n Learner: CEVAE')
+        from cevae import CEVAE as cevae
         print('Note: Treatments should be the first columns of X')
         if colnamesZ is not None:
             nclinical = len(colnamesZ)
