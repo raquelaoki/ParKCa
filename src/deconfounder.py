@@ -12,8 +12,8 @@ tf.enable_eager_execution()
 class deconfounder_algorithm():
     def __init__(self, X_train, X_test, y_train, y_test, k=5):
         super(deconfounder_algorithm, self).__init__()
-        self.X_train = X_train
-        self.X_test = X_test
+        self.X_train = X_train.values
+        self.X_test = X_test.values
         self.y_train = y_train
         self.y_test = y_test
         X = np.concatenate([self.X_train, self.X_test], axis=0)
