@@ -44,6 +44,7 @@ class Data(object):
 
     def get_train_valid_test(self):
         for col in self.treatments_columns:
+            print('here',self.X_train.shape, col)
             a = Tensor(np.delete(self.X_train, col, 1))
             b = Tensor(self.X_train[:, col].reshape(self.X_train.shape[0], 1))
             c = Tensor(self.y_train.reshape(self.X_train.shape[0], 1))
