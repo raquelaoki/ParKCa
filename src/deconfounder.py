@@ -239,6 +239,7 @@ class deconfounder_algorithm():
                    'tpr': tpr,
                    'auc': auc}
         else:
+            print('line 242', self.X_train.shape, pca.shape, rows)
             x_aug = np.concatenate([self.X_train[rows, :], pca[rows, :]], axis=1)
             model.fit(x_aug, self.y_train[rows])
             coef = model.coef_[0]
