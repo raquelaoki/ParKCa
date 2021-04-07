@@ -11,7 +11,6 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.svm import SVC
 from sklearn.metrics import roc_curve, roc_auc_score
-from sklearn import calibration
 from scipy import sparse, stats
 
 from torch.utils.data import Dataset, DataLoader

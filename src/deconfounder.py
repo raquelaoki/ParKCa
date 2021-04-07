@@ -6,7 +6,7 @@ from scipy import sparse, stats
 import tensorflow.compat.v1 as tf
 from tensorflow.keras import optimizers
 import tensorflow_probability as tfp
-from sklearn import linear_model
+from sklearn import linear_model, calibration
 from tensorflow_probability import distributions as tfd
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
@@ -217,7 +217,7 @@ class deconfounder_algorithm():
             assert len(rows_train) == len(self.y_train), "Error training set dimensions"
             assert len(rows_test) == len(self.y_test), "Error testing set dimensions"
 
-            print('line 220',self.X_train.shape, pca.shape, rows_train,rows_test)
+            # print('line 220',self.X_train.shape, pca.shape, rows_train,rows_test)
             X_train = np.concatenate([self.X_train, pca[rows_train, :]], axis=1)
             X_test = np.concatenate([self.X_test, pca[rows_test, :]], axis=1)
 
