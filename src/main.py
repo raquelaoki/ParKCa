@@ -28,7 +28,7 @@ warnings.simplefilter("ignore")
 pd.set_option('display.max_columns', 500)
 
 #TODO: update with main format and config.yaml
-
+#todo: tcga
 
 if EVALUATION_A:
     '''
