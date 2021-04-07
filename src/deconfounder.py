@@ -8,7 +8,7 @@ from tensorflow.keras import optimizers
 import tensorflow_probability as tfp
 from sklearn import linear_model, calibration
 from tensorflow_probability import distributions as tfd
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve, roc_auc_score
 
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
