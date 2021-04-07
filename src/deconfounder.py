@@ -213,7 +213,7 @@ class deconfounder_algorithm():
                                            fit_intercept=True, random_state=0)
         if roc_flag:
             rows_train = range(self.X_train.shape[0])
-            rows_test = range(self.X_train.shape[0] + 1, self.X_train.shape[0] + self.X_test.shape[0] + 1)
+            rows_test = range(self.X_train.shape[0] , self.X_train.shape[0] + self.X_test.shape[0] )
             assert len(rows_train) == len(self.y_train), "Error training set dimensions"
             assert len(rows_test) == len(self.y_test), "Error testing set dimensions"
 
