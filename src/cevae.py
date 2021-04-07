@@ -304,6 +304,7 @@ class CEVAE():
         self.decay = decay
         self.print_every = print_every
         self.scaler = MinMaxScaler(feature_range=(0, 1))
+        print('...Shapes:', X_train.shape)
 
     def Find_Optimal_Cutoff(self, target, predicted):
         """ Find the optimal probability cutoff point for a classification model related to event rate
