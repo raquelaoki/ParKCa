@@ -235,10 +235,10 @@ class deconfounder_algorithm:
 
             print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred),
                   sum(y_train_pred), sum(self.y_train))
-            print('...... confusion matrix: \n', confusion_matrix(self.y_train, y_train_pred))
+            print('...... confusion matrix: \n', confusion_matrix(self.y_train, y_train_pred).ravel())
 
             print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred), sum(y_test_pred), sum(self.y_test))
-            print('...... confusion matrix: \n', confusion_matrix(self.y_test, y_test_pred))
+            print('...... confusion matrix: \n', confusion_matrix(self.y_test, y_test_pred).ravel())
             fpr, tpr, _ = roc_curve(self.y_test, y_test_predp1)
             auc = roc_auc_score(self.y_test, y_test_predp1)
             roc = {'learners': 'DA',

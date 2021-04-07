@@ -78,7 +78,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
             # coefk_table = pd.DataFrame(columns=[causes])
             model_da = DA(X_train, X_test, y_train, y_test, 10)
             coef, coef_continuos, roc = model_da.fit()
-            roc_table = roc_table.append(roc, ignore_index=True)
+            # roc_table = roc_table.append(roc, ignore_index=True)
 
             coef_table[coln] = coef_continuos[0:len(TreatCols)]
         print('Done!')
