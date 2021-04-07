@@ -14,7 +14,7 @@ from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn import linear_model
 from sklearn import calibration
 from scipy import sparse, stats
-import functools
+
 from torch.utils.data import Dataset, DataLoader
 import torch as T
 import torch.nn as nn
