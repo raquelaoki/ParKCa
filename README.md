@@ -13,46 +13,31 @@ To use a particular method, check this [tutorial](https://github.com/raquelaoki/
 
 ## Code Instructions 
 
-### 1. DATA PRE-PROCESSING 
+### 1. DATA 
 
-TODO: update
-- datapreprocessing.py: simulated dataset generation, pre-processing of cgc list, and other operations  
-- script_realdata_preparation.R: real-dataset download, filtering, merging
+a. Real-world dataset (TODO - Missing TCGA)
+b. Simulated dataset ([link](https://github.com/raquelaoki/CompBioAndSimulated_Datasets))
 
-#### Example: 
+#### Example simulation: 
 ```python
-n_units = 5000
-n_variables = 10000 
-n_datasets = 10
-dp.generate_samples(n_datasets,n_units, n_variables) 
-#output: 10 datasets 5000 x 10000 in pickle format 'data_s//snp_simulated1_0.txt',...,'data_s//snp_simulated1_9.txt'
-#+1 dataset 5000 x 10 in pickle format with the simulated targets 'data_s//snp_simulated1_y01.txt'; col 0 has the targets of 'snp_simulated1_0.txt' dataset. 
-#+1 dataset 10000 x 10 in pickle format with the true causes 'data_s//snp_simulated1_truecauses.txt'; col 0 has the true causes of 'snp_simulated1_0.txt' dataset. 
+from CompBioAndSimulated_Datasets.simulated_data_multicause import *
+
+sdata_gwas = gwas_simulated_data(prop_tc=0.05, pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt')
+X, y, y01, treatement_columns, treatment_effects  = sdata_gwas.generate_samples()
 ```
 
 
-### 2. LEARNERS  
-- bart.R: Fit BART to real-world dataset. Average time for full dataset: 6h 
-- cevae.ipynb + CEVAE_FUNCTIONS.py + CEVAE.py: Google Colab notebook. Fit CEVAE for simulated dataset. Average time for full dataset: 10h
-- from train.py, learners(APPLICATIONBOOL,DABOOL,path): run the DA for the application and simulated dataset
+### 2. LEARNERS
+
+The following causal inference methods were implemented:
+- BART
+- CEVAE
+- Deconfounder Algorithm
 
 #### Example: 
 ```python
-train.learners(APPLICATIONBOOL=True,DABOOL=True, path = path)
-
-tcga_train_gexpression_cgc_7k_abr_HNSC.txt :  192
-skip HNSC #HNSC is skiped because there are only 192 patients with this cancer type
-
-tcga_train_gexpression_cgc_7k_abr_LGG.txt :  254
-Pass Predictive Check: dappcalr_15_LGG ( 0.7182358928313352 )
-F1: 0.3333333333333333 10 20
-Confusion Matrix [[59  5] [15  5]]
-
-tcga_train_gexpression_cgc_7k_abr_LIHC.txt :  269
-Pass Predictive Check: dappcalr_15_LIHC ( 0.7042992933416174 )
-F1: 0.3111111111111111 17 28
-Confusion Matrix [[51 10] [21  7]]
-#F1-score and confusion matrix to predict level 0 target (metastasis) 
+colnamesX = ['Col'+str(i) for i in range(X.shape[1])]
+level1data = learners(['CEVAE','DA','BART'],pd.DataFrame(X),y01, TreatCols = None, colnamesX=colnamesX)
 ```
 
 ### 3. META-LEARNERS
@@ -61,10 +46,13 @@ If working on the real-world datset, set prob = 1.
 
 #### Example: 
 ```python
-experiments = train.meta_learner(data,['rf','lr','random','upu','adapter','nn'],0.5)
-experiments 
+level1data['y'] = 0
+level1data['y'] = [1 if i in known_causes else 0 for i in level1data['causes'].values]
 
-  metalearners  precision    recall       auc        f1       f1_    prfull  refull
+roc, output, y_full_prob = parkca.meta_learner(level1data.fillna(0), ['lr','nn','upu','rf'],'y')
+output 
+
+  metalearners   pr_test   re_test   auc_test  f1_test   f1_full   pr_full   re_full
 0           rf   0.112211  0.202381  0.510435  0.252295  0.144374  0.173531  0.461988   
 1           lr   0.102883  0.467262  0.502693  0.126300  0.168636  0.072530  0.488304  
 2       random   0.136508  0.127976  0.518104  0.063189  0.132104  0.063516  0.062865 
@@ -72,9 +60,6 @@ experiments
 4      adapter   0.101818  1.000000  0.500000  0.128042  0.184818  0.068400  1.000000 
 5           nn   0.103462  0.773810  0.506844  0.125644  0.182520  0.068434  0.766082   
 6     ensemble   0.103504  0.571429  0.505181  0.125747  0.175262  0.070447  0.584795  
-
-#precision, recall, aux, f1_ were calculated using testing set; 
-#prfull, refull, f1 were calculated using the full set.
 ```
 
 ### 4.EVALUATION 
@@ -87,9 +72,3 @@ qav, q_ = eval.diversity(['cevae' ],['coef'], data) #qav: average value, q_: arr
 qav
 -0.0482939868370808
 ```
-### 5. RUNNING EXPERIMENTS 
-- main.py: 
-
-* real-world application: after running script_realdata_preparation.R and bart.R, this code run the DA learner, join the results, add the known causes from cgc, run the meta-learners and save the evaluation outputs. 
-* simulatation: run the dp.generate_samples(sim,n_units, n_causes) and cevae.ipynb. Then, this code run the DA learner, join the results, add proportions of known causes, run the meta-learners and save the evaluation outputs. 
-
