@@ -8,7 +8,6 @@ Use as [reference](https://github.com/raquelaoki/Summer2020MultipleCauses/blob/m
 
 1. The Deconfounder Algorithm
 ```python
-#TODO: Test
 from ParKCa.src.deconfounder import deconfounder_algorithm as DA
 model_da = DA(X_train, X_test, y_train, y_test, k=10)
 coef, coef_continuos, roc = model_da.fit()
