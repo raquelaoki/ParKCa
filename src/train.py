@@ -49,7 +49,7 @@ from cevae import CEVAE as cevae
 # from pywsl.utils.comcalc import bin_clf_err
 
 
-def learners(LearnersList, X, y, colnamesX=None, id='', Z=None, colnamesZ=None, path_output=None, cevaeMax=500):
+def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, colnamesZ=None, path_output=None, cevaeMax=500):
     """
     input:
         path_output: where to save the files
@@ -58,11 +58,14 @@ def learners(LearnersList, X, y, colnamesX=None, id='', Z=None, colnamesZ=None, 
         y: 01 outcome
         causes: name of the potential causes (snps)
     """
+    if TreatCols is None:
+        TreatCols = list(range(X.shape[1]))
     roc_table = pd.DataFrame(columns=['learners', 'fpr', 'tpr', 'auc'])
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
     coef_table = pd.DataFrame(columns=['causes'])
     coef_table['causes'] = colnamesX
-    print("X_trian shape should ne 16236 -", X_train.shape)
+    # ToDO: TreatCols implement
+    # these are the columns I want to evaluate
 
     if 'DA' in LearnersList:
         print('\n\nLearner: DA')
@@ -86,15 +89,20 @@ def learners(LearnersList, X, y, colnamesX=None, id='', Z=None, colnamesZ=None, 
         model_bart = learner_BART(X_train, X_test, y_train, y_test)
         model_bart.fit()
         print('...... predictions')
-        coef_table['BART'] = ''
+        coef_table['BART'] = cate(TreatCols)
         # TODO: add cate
         # predictions = model.predict(x_snps)  # [:,0:1000] Make predictions on the train set
         # print(predictions[0])
         print('Done!')
     if 'CEVAE' in LearnersList:
         print('\n\n Learner: CEVAE')
-        nclinical = len(colnamesZ)
-        if cevaeMax < len(range(nclinical, X_train.shape[1])):
+        print('Note: Treatments should be the first columns of X')
+        if colnamesZ is not None:
+            nclinical = len(colnamesZ)
+        else:
+            nclinical = 0
+
+        if cevaeMax < len(range(nclinical, nclinical+len(TreatCols))):
             print('... Working with dataset partitions')
             X_train_cevae_c, X_test_cevae_c = X_train[:, 0:nclinical], X_test[:, 0:nclinical]
             X_train_cevae_s = X_train[:, nclinical:X_train.shape[1]]
@@ -127,7 +135,7 @@ def learners(LearnersList, X, y, colnamesX=None, id='', Z=None, colnamesZ=None, 
                 #    low = up
             cate = [item for sublist in cate for item in sublist]
         else:
-            print('Not using Partitions', cevaeMax, len(range(nclinical, X_train.shape[0])))
+            print('Not using Partitions', cevaeMax, len(range(nclinical, nclinical+len(TreatCols))))
             treatments = range(len(colnamesZ), X_train.shape[1])
             model_cevae = cevae(X_train, X_test, y_train, y_test, treatments,
                                 binfeats=treatments, contfeats=colnamesZ)
