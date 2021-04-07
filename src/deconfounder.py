@@ -55,7 +55,7 @@ class deconfounder_algorithm():
             coef = []
             #pca = np.transpose(z)
             pca = w
-            print('line 56 pca', pca.shape)
+            #print('line 56 pca', pca.shape)
             # Bootstrap to calculate the coefs
             for i in range(b):
                 rows = np.random.choice(self.X_train.shape[0], int(self.X_train.shape[0] * 0.85), replace=False)
@@ -217,6 +217,7 @@ class deconfounder_algorithm():
             assert len(rows_train) == len(self.y_train), "Error training set dimensions"
             assert len(rows_test) == len(self.y_test), "Error testing set dimensions"
 
+            print('line 220',self.X_train.shape, pca.shape, rows_train,rows_test)
             X_train = np.concatenate([self.X_train, pca[rows_train, :]], axis=1)
             X_test = np.concatenate([self.X_test, pca[rows_test, :]], axis=1)
 
