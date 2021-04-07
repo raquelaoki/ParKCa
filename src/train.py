@@ -63,7 +63,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
     roc_table = pd.DataFrame(columns=['learners', 'fpr', 'tpr', 'auc'])
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
     coef_table = pd.DataFrame(columns=['causes'])
-    coef_table['causes'] = colnamesX
+    coef_table['causes'] = ['T'+str(i) for i in range(len(TreatCols))]
     # ToDO: TreatCols implement
     # these are the columns I want to evaluate
 
@@ -90,7 +90,6 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         model_bart.fit()
         print('...... predictions')
         coef_table['BART'] = model_bart.cate(TreatCols)
-        # TODO: add cate
         # predictions = model.predict(x_snps)  # [:,0:1000] Make predictions on the train set
         # print(predictions[0])
         print('Done!')

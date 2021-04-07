@@ -41,7 +41,6 @@ class Data(object):
         # print('From data initialization', len(self.binfeats))
         self.contfeats = [] if contfeats is None else list(contfeats)  # which features are continuous
         # print('continuous', list(contfeats))
-        # TODO: update continuous features for goPDX
 
     def get_train_valid_test(self):
         for col in self.treatments_columns:
@@ -352,7 +351,6 @@ class CEVAE():
         #       'tpr': np.mean(tpr),
         #       'auc': np.mean(auc)}
         return cevae_cate  # , roc
-        # return cevae_cate
 
     def fit(self, train_loader, test_loader):
         # try:
