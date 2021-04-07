@@ -36,8 +36,7 @@ class Data(object):
         self.y_train = y_train
         self.X_test = X_test.values
         self.y_test = y_test
-        self.binfeats = range(
-            self.X_train.shape[1] - 1) if binfeats is None else binfeats  # which features are continuous
+        self.binfeats = range(self.X_train.shape[1] - 1) if binfeats is None else binfeats
         # print('From data initialization', len(self.binfeats))
         self.contfeats = [] if contfeats is None else list(contfeats)  # which features are continuous
         # print('continuous', list(contfeats))
@@ -365,7 +364,7 @@ class CEVAE():
         q_t_x_dist = q_t_x(dim_in=x_dim - 1, nh=1, dim_h=self.h_dim, dim_out=1).cuda()
         # t is not feed into network, therefore not increasing input size (y is fed).
         q_y_xt_dist = q_y_xt(dim_in=x_dim - 1, nh=3, dim_h=self.h_dim, dim_out=1).cuda()
-        # print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) )
+        print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) )
         q_z_tyx_dist = q_z_tyx(dim_in=len(self.dataset.binfeats) + len(self.dataset.contfeats), nh=3,
                                dim_h=self.h_dim,
                                dim_out=self.z_dim).cuda()  # remove an 1 from dim_in
