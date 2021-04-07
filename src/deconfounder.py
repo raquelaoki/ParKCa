@@ -43,6 +43,7 @@ class deconfounder_algorithm():
         x, x_val, holdout_mask = self.daHoldout(holdout_prop)
         print('... Done Holdout')
         w, z, x_gen = self.FM_Prob_PCA(x, True)
+        print('line 46 ppca shapes', w.shape, z.shape, x_gen)
         print('... Done PPCA')
         pvalue = self.PredictiveCheck(x_val, x_gen, w, z, holdout_mask)
         low = stats.norm(0, 1).ppf(alpha / 2)
@@ -53,7 +54,7 @@ class deconfounder_algorithm():
             print('... Fitting Outcome Model')
             coef = []
             pca = np.transpose(z)
-
+            print('line 56 pca', pca.shape)
             # Bootstrap to calculate the coefs
             for i in range(b):
                 rows = np.random.choice(self.X_train.shape[0], int(self.X_train.shape[0] * 0.85), replace=False)
