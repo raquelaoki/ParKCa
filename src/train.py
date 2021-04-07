@@ -89,7 +89,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         model_bart = learner_BART(X_train, X_test, y_train, y_test)
         model_bart.fit()
         print('...... predictions')
-        coef_table['BART'] = cate(TreatCols)
+        coef_table['BART'] = model_bart.cate(TreatCols)
         # TODO: add cate
         # predictions = model.predict(x_snps)  # [:,0:1000] Make predictions on the train set
         # print(predictions[0])
@@ -136,8 +136,8 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
             cate = [item for sublist in cate for item in sublist]
         else:
             print('Not using Partitions', cevaeMax, len(range(nclinical, nclinical+len(TreatCols))))
-            treatments = range(len(colnamesZ), X_train.shape[1])
-            model_cevae = cevae(X_train, X_test, y_train, y_test, treatments,
+            treatments = range(nclinical, nclinical+len(TreatCols))
+            model_cevae = cevae(X_train, X_test, y_train, y_test, TreatCols,
                                 binfeats=treatments, contfeats=colnamesZ)
             cate = model_cevae.fit_all()
         coef_table['CEVAE'] = cate
