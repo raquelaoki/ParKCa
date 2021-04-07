@@ -247,9 +247,9 @@ class deconfounder_algorithm:
                    'auc': auc}
         else:
             x_aug = np.concatenate([self.X_train[rows, :], pca[rows, :]], axis=1)
-            print(type(self.y_train))
-            print(self.y_train[rows.ravel()])
-            model.fit(x_aug, self.y_train[rows.ravel()])
+            print(type(self.y_train),rows)
+            print(self.y_train[list(rows)])
+            model.fit(x_aug, self.y_train[list(rows)])
             coef = model.coef_[0]
             roc = {}
         return coef, roc
