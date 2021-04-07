@@ -44,12 +44,6 @@ class Data(object):
 
     def get_train_valid_test(self):
         for col in self.treatments_columns:
-            #print('here',self.X_train.shape, col)
-            #a = Tensor(np.delete(self.X_train, col, 1))
-            #b = Tensor(self.X_train[:, col].reshape(self.X_train.shape[0], 1))
-            #c = Tensor(self.y_train.reshape(self.X_train.shape[0], 1))
-            #print('shapes', col, a.shape, b.shape, c.shape)
-
             dataset_train = TensorDataset(Tensor(np.delete(self.X_train, col, 1)),
                                           Tensor(self.X_train[:, col].reshape(self.X_train.shape[0], 1)),
                                           Tensor(self.y_train.reshape(self.X_train.shape[0], 1)))
@@ -87,6 +81,7 @@ def init_qz(qz, pz, data_loader):
     optimizer = optim.Adam(qz.parameters(), lr=0.001)
     for i in range(50):
         xy = torch.cat((batch[0], batch[2]), 1)
+        print('line 84', xy.shape)
         z_infer = qz(xy=xy, t=batch[1])
         KLqp = (-torch.log(z_infer.stddev) + 1 / 2 * (z_infer.variance + z_infer.mean ** 2 - 1)).sum(1)
         optimizer.zero_grad()
@@ -273,7 +268,7 @@ class q_z_tyx(nn.Module):
 
     def forward(self, xy, t):
         # Shared layers with separated output layers
-        # print('Checking:', xy.shape)
+        print('Checking:', xy.shape)
         x = F.elu(self.input(xy))
         for i in range(self.nh):
             x = F.elu(self.hidden[i](x))
