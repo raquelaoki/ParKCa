@@ -49,7 +49,7 @@ from cevae import CEVAE as cevae
 # from pywsl.utils.comcalc import bin_clf_err
 
 
-def learners(LearnersList, X, y, colnamesX, id='', Z=None, colnamesZ=None, path_output=None, cevaeMax=500):
+def learners(LearnersList, X, y, colnamesX=None, id='', Z=None, colnamesZ=None, path_output=None, cevaeMax=500):
     """
     input:
         path_output: where to save the files
@@ -101,7 +101,7 @@ def learners(LearnersList, X, y, colnamesX, id='', Z=None, colnamesZ=None, path_
             X_test_cevae_s = X_test[:, nclinical:X_train.shape[1]]
             low = nclinical
             up = 0
-            cate = []meta_learner
+            cate = []
             count = 0
             while up < X_train_cevae_s.shape[1]:
                 up = np.min([low + cevaeMax, X_train_cevae_s.shape[1]])

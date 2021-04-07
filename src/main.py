@@ -7,7 +7,6 @@ import time
 import random
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from data_code_future_repo import datapreprocessing as dp
 import CEVAE as cevae
 import bart as bart
 import deconfounder as decondouder
@@ -29,11 +28,6 @@ warnings.simplefilter("ignore")
 pd.set_option('display.max_columns', 500)
 
 #TODO: update with main format and config.yaml
-
-SIMULATION = False
-EVALUATION_A = True
-EVALUATION_S = True
-#cuda test torch.cuda.FloatTensor(2)
 
 
 if EVALUATION_A:
@@ -87,38 +81,6 @@ if EVALUATION_A:
     experiments0.to_csv('results\\eval_metalevel0.txt', sep=';')
     print("DONE WITH EXPERIMENTS ON APPLICATION")
 
-
-
-
-if EVALUATION_S:
-    '''
-    Simulation
-    level 0 data: Binary treatments
-    level 0 outcome: Binary
-    '''
-    print("\n\n\n STARTING EXPERIMENTS ON SIMULATION")
-
-    #SAVING 10 datasets
-    n_units = 5000
-    n_causes = 10000# 10% var
-    sim = 10
-
-    #CREATE THE DATASET
-    dp.generate_samples(sim,n_units, n_causes)
-
-    #DA
-    pathtc = 'data_s\\snp_simulated1_truecauses.txt'
-    pathy01 = 'data_s\\snp_simulated1_y01.txt'
-    tc  = pd.read_pickle(pathtc)
-    y01 = pd.read_pickle(pathy01)
-
-    #CEVAE IS RUN IN A NOTEBOOK
-    print("DONE WITH EXPERIMENTS ON SIMULATION")
-
-    #learners and meta-learners
-    dp.sim_level1data([0,1,2,3,4,5,6,7,8,9],tc,y01,'sim_roc_simulations')
-    eval.roc_plot('results//sim_roc_simulations.txt')
-    eval.simulation_eval(10)
 
 if __name__ == '__main__':
     # main(config_path = sys.argv[1])
