@@ -32,9 +32,9 @@ class Data(object):
         self.treatments_columns = treatments_columns
         # self.data_path = data_path
         self.batch = batch
-        self.X_train = X_train
+        self.X_train = X_train.values
         self.y_train = y_train
-        self.X_test = X_test
+        self.X_test = X_test.values
         self.y_test = y_test
         self.binfeats = range(
             self.X_train.shape[1] - 1) if binfeats is None else binfeats  # which features are continuous
@@ -44,11 +44,11 @@ class Data(object):
 
     def get_train_valid_test(self):
         for col in self.treatments_columns:
-            print('here',self.X_train.shape, col)
-            a = Tensor(np.delete(self.X_train, col, 1))
-            b = Tensor(self.X_train[:, col].reshape(self.X_train.shape[0], 1))
-            c = Tensor(self.y_train.reshape(self.X_train.shape[0], 1))
-            print('shapes', col, a.shape, b.shape, c.shape)
+            #print('here',self.X_train.shape, col)
+            #a = Tensor(np.delete(self.X_train, col, 1))
+            #b = Tensor(self.X_train[:, col].reshape(self.X_train.shape[0], 1))
+            #c = Tensor(self.y_train.reshape(self.X_train.shape[0], 1))
+            #print('shapes', col, a.shape, b.shape, c.shape)
 
             dataset_train = TensorDataset(Tensor(np.delete(self.X_train, col, 1)),
                                           Tensor(self.X_train[:, col].reshape(self.X_train.shape[0], 1)),
