@@ -87,6 +87,9 @@ class BART:
             assert len(It1) + len(It0) == len(y_pred_fulli), 'CATE: Wrong Dimensions'
             assert len(Ot1) + len(Ot0) == len(y_pred_full), 'CATE: Wrong Dimensions'
             if not boostrap:
+                print(t, np.concatenate([Ot1, It1], 0).mean(), np.concatenate([Ot0, It0], 0).mean())
+                print(len(np.concatenate([Ot1, It1], 0)),np.concatenate([Ot0, It0], 0))
+                print(t, np.concatenate([Ot1, It1], 0).sum(), np.concatenate([Ot0, It0], 0).sum())
                 bart_cate[t] = np.concatenate([Ot1, It1], 0).mean() - np.concatenate([Ot0, It0], 0).mean()
             else:
                 bart_cate[t], bart_cate_error[t] = boostrap_cate(np.concatenate([Ot1, It1], 0) - np.concatenate([Ot0, It0], 0), b)
