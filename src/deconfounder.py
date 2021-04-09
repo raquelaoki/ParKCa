@@ -13,6 +13,7 @@ from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
 
+
 class deconfounder_algorithm:
     def __init__(self, X_train, X_test, y_train, y_test, k=5):
         super(deconfounder_algorithm, self).__init__()
@@ -29,7 +30,7 @@ class deconfounder_algorithm:
         self.k = k
         print('Running DA')
 
-    def fit(self, b=100, holdout_prop=0.2, alpha=0.05,class_weight={0:1,0:1}):
+    def fit(self, b=100, holdout_prop=0.2, alpha=0.05, class_weight={0: 1, 0: 1}):
         """
         Implementation of the Deconfounder Algorthm with Prob PCA and Logistic Regression
         Contains: Prob PCA function, Predictive Check and Outcome Model
@@ -200,7 +201,7 @@ class deconfounder_algorithm:
             pvals[i] = np.mean(np.array(x_val_current < x_gen_current))
         return np.mean(pvals)
 
-    def OutcomeModel_LR(self, pca, rows=None, roc_flag=True, class_weight={0:1, 1:1}):
+    def OutcomeModel_LR(self, pca, rows=None, roc_flag=True, class_weight={0: 1, 1: 1}):
         """
         outcome model from the DA
         input:
@@ -213,7 +214,7 @@ class deconfounder_algorithm:
                                            fit_intercept=True, random_state=0, class_weight=class_weight)
         if roc_flag:
             rows_train = range(self.X_train.shape[0])
-            rows_test = range(self.X_train.shape[0] , self.X_train.shape[0] + self.X_test.shape[0] )
+            rows_test = range(self.X_train.shape[0], self.X_train.shape[0] + self.X_test.shape[0])
             assert len(rows_train) == len(self.y_train), "Error training set dimensions"
             assert len(rows_test) == len(self.y_test), "Error testing set dimensions"
 
@@ -229,7 +230,7 @@ class deconfounder_algorithm:
             y_train_pred = modelcv.predict(X_train)
 
             y_test_predp1 = [i[1] for i in y_test_predp]
-            print('... Leaner Evaluation:')
+            print('\n... Leaner Evaluation:')
 
             print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred),
                   sum(y_train_pred), sum(self.y_train))
