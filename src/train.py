@@ -43,7 +43,7 @@ warnings.simplefilter("ignore")
 # from pywsl.utils.comcalc import bin_clf_err
 
 
-def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, colnamesZ=None,
+def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='', Z=None, colnamesZ=None,
              path_output=None, cevaeMax=500, binfeatures=None, confeatures=None, timeit=False):
     """
     input:
@@ -55,8 +55,20 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
     """
     if TreatCols is None:
         TreatCols = list(range(X.shape[1]))
-    roc_table = pd.DataFrame(columns=['learners', 'fpr', 'tpr', 'auc'])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=63)
+
+    #check if binary treatments
+    newX01 = False
+    X01 = X.copy()
+    for col in TreatCols:
+        a = X01[:,col]
+        if ((a == 0) | (a == 1)).all():
+            newX01 = True
+            mean_v = np.mean(X01[:,col])
+            X01[:,col] = [1 if i > mean_v else 0 for i in X01[:,col]]
+        else:
+            pass
+
+    X_train, X_test, y_train, y_test, X_train01, X_test01 = train_test_split(X, y, X01, test_size=0.33, random_state=seed)
     coef_table = pd.DataFrame(columns=['causes'])
     coef_table['causes'] = ['T'+str(i) for i in range(len(TreatCols))]
 
@@ -90,7 +102,7 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         from bart import BART as BART
         # model = SklearnModel(n_trees=50, n_burn=50, n_chains=1, n_jobs=1)  # Use default parameters
         # model.fit(x_snps, y)  # Fit the model
-        model_bart = BART(X_train, X_test, y_train, y_test)
+        model_bart = BART(X_train01, X_test01, y_train, y_test)
         model_bart.fit()
         print('...... predictions')
         coef_table['BART'] = model_bart.cate(TreatCols)
@@ -111,9 +123,9 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
 
         if cevaeMax < len(range(nclinical, nclinical+len(TreatCols))):
             print('... Working with dataset partitions')
-            X_train_cevae_c, X_test_cevae_c = X_train[:, 0:nclinical], X_test[:, 0:nclinical]
-            X_train_cevae_s = X_train[:, nclinical:X_train.shape[1]]
-            X_test_cevae_s = X_test[:, nclinical:X_train.shape[1]]
+            X_train_cevae_c, X_test_cevae_c = X_train01[:, 0:nclinical], X_test01[:, 0:nclinical]
+            X_train_cevae_s = X_train01[:, nclinical:X_train.shape[1]]
+            X_test_cevae_s = X_test01[:, nclinical:X_train.shape[1]]
             low = nclinical
             up = 0
             cate = []
