@@ -24,7 +24,7 @@ b. Simulated dataset ([link](https://github.com/raquelaoki/CompBioAndSimulated_D
 from CompBioAndSimulated_Datasets.simulated_data_multicause import *
 
 sdata_gwas = gwas_simulated_data(prop_tc=0.05, pca_path='/content/CompBioAndSimulated_Datasets/data/tgp_pca2.txt')
-X, y, y01, treatement_columns, treatment_effects  = sdata_gwas.generate_samples()
+X, y, y01, treatement_columns, treatment_effects, group  = sdata_gwas.generate_samples()
 ```
 
 
