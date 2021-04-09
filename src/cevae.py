@@ -255,7 +255,7 @@ class q_z_tyx(nn.Module):
         self.nh = nh
 
         # Shared layers with separated output layers
-        # print('CHecking input:', dim_in)
+        print('CHecking input:', dim_in)
         self.input = nn.Linear(dim_in, dim_h)
         # loop through dimensions to create fully con. hidden layers, add params with ModuleList
         self.hidden = nn.ModuleList([nn.Linear(dim_h, dim_h) for _ in range(nh)])
@@ -268,7 +268,7 @@ class q_z_tyx(nn.Module):
 
     def forward(self, xy, t):
         # Shared layers with separated output layers
-        # print('Checking:', xy.shape)
+        print(' before elu Checking:', xy.shape)
         x = F.elu(self.input(xy))
         for i in range(self.nh):
             x = F.elu(self.hidden[i](x))
