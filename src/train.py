@@ -60,11 +60,11 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
     newX01 = False
     X01 = X.copy()
     for col in TreatCols:
-        a = X01[:,col]
+        a = X01.iloc[col]
         if ((a == 0) | (a == 1)).all():
             newX01 = True
-            mean_v = np.mean(X01[:,col])
-            X01[:,col] = [1 if i > mean_v else 0 for i in X01[:,col]]
+            mean_v = np.mean(X01.iloc[col])
+            X01.iloc[col] = [1 if i > mean_v else 0 for i in X01.iloc[col]]
         else:
             pass
 
