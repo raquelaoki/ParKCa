@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import warnings
 import os
+import time
 # import eval as eval
 from os import listdir
 from os.path import isfile, join
@@ -43,7 +44,7 @@ warnings.simplefilter("ignore")
 
 
 def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, colnamesZ=None,
-             path_output=None, cevaeMax=500, binfeatures=None, confeatures=None):
+             path_output=None, cevaeMax=500, binfeatures=None, confeatures=None, timeit=False):
     """
     input:
         path_output: where to save the files
@@ -59,8 +60,11 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
     coef_table = pd.DataFrame(columns=['causes'])
     coef_table['causes'] = ['T'+str(i) for i in range(len(TreatCols))]
 
+    times = {}
+
     if 'DA' in LearnersList:
         print('\n\nLearner: DA')
+        start_time = time.time()
         from deconfounder import deconfounder_algorithm as DA
         k_list = [15]  # if exploring multiple latent sizes
         print('... There are ', len(k_list), ' versions of DA')
@@ -74,9 +78,12 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
             # roc_table = roc_table.append(roc, ignore_index=True)
 
             coef_table[coln] = coef_continuos[0:len(TreatCols)]
+        times['DA'] = time.time()-start_time
         print('Done!')
+
     if 'BART' in LearnersList:
         print('\n\nLearner: BART')
+        start_time = time.time()
         from bart import BART as BART
         # model = SklearnModel(n_trees=50, n_burn=50, n_chains=1, n_jobs=1)  # Use default parameters
         # model.fit(x_snps, y)  # Fit the model
@@ -86,9 +93,12 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         coef_table['BART'] = model_bart.cate(TreatCols)
         # predictions = model.predict(x_snps)  # [:,0:1000] Make predictions on the train set
         # print(predictions[0])
+        times['BART'] = time.time() - start_time
         print('Done!')
+
     if 'CEVAE' in LearnersList:
         print('\n\n Learner: CEVAE')
+        start_time = time.time()
         from cevae import CEVAE as CEVAE
         print('Note: Treatments should be the first columns of X')
         if colnamesZ is not None:
@@ -136,15 +146,22 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
             cate = model_cevae.fit_all()
         coef_table['CEVAE'] = cate
         np.save('level1data_learnersout_cevae', coef_table)
+        times['CEVAE'] = time.time() - start_time
         print('Done!')
+
     if 'noise' in LearnersList:
         print('\n\nAdding noise')
+        start_time = time.time()
         coef_table['noise'] = np.random.normal(0, 1, len(colnamesX))
         print(coef_table.head())
         #np.save('level1data_learnersout', coef_table)
+        times['noise'] = time.time() - start_time
     np.save('level1data_learnersout', coef_table)
-    return coef_table
 
+    if not timeit:
+        return coef_table
+    else:
+        return coef_table, times
 
 def meta_learner(level1data, MetaLearnerList, target='y_out', prob=1, ensemble=False, print_out=False):
     """

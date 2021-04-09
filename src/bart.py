@@ -67,6 +67,7 @@ class BART:
         X = np.concatenate([self.X_train, self.X_test], axis=0)
         y_pred_full = self.model.predict(X)
         bart_cate = np.zeros(len(TreatmentColumns))
+        bart_cate = [:]=np.NaN
         bart_cate_error = np.zeros(len(TreatmentColumns))
         for t, treat in enumerate(TreatmentColumns):
             Xi = X.copy()

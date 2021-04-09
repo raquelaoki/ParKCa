@@ -289,7 +289,7 @@ class q_z_tyx(nn.Module):
 class CEVAE():
     def __init__(self, X_train, X_test, y_train, y_test,
                  treatments_columns, z_dim=20,
-                 h_dim=64, epochs=25, batch=20, lr=0.001,
+                 h_dim=64, epochs=25, batch=100, lr=0.001,
                  decay=0.001, print_every=50,
                  binfeats=None, contfeats=None):
         super(CEVAE, self).__init__()
