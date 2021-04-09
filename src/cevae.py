@@ -358,7 +358,7 @@ class CEVAE():
         # try:
         # init networks (overwritten per replication)
         x_dim = len(self.dataset.binfeats) + len(self.dataset.contfeats)+1
-        print('line 361', x_dim,len(self.dataset.binfeats) , len(self.dataset.contfeats))
+        #print('line 361', x_dim,len(self.dataset.binfeats) , len(self.dataset.contfeats))
         # print('From initialization:', self.z_dim, len(self.dataset.binfeats))
         p_x_z_dist = p_x_z(dim_in=self.z_dim, nh=3, dim_h=self.h_dim, dim_out_bin=len(self.dataset.binfeats),
                            dim_out_con=len(self.dataset.contfeats)).cuda()
