@@ -43,7 +43,7 @@ class BART:
             print('BART Library Missing')
             print("Check: https://github.com/JakeColtman/bartpy")
             sys.exit()
-            
+
         model = SklearnModel(n_trees=n_trees, n_burn=n_burn, n_chains=1, n_jobs=1)
         model.fit(self.X_train, self.y_train)
         y_train_pred = model.predict(self.X_train)  # [:,0:1000] Make predictions on the train set
@@ -88,7 +88,7 @@ class BART:
             if not boostrap:
                 bart_cate[t] = np.concatenate([Ot1, It1], 0).mean() - np.concatenate([Ot0, It0], 0).mean()
             else:
-                bart_cate[t],bart_cate_error[t] = boostrap_cate(np.concatenate([Ot1, It1], 0) - np.concatenate([Ot0, It0], 0), b)
+                bart_cate[t], bart_cate_error[t] = boostrap_cate(np.concatenate([Ot1, It1], 0) - np.concatenate([Ot0, It0], 0), b)
 
         if boostrap:
             return bart_cate, bart_cate_error
