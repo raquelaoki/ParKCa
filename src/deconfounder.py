@@ -57,10 +57,8 @@ class deconfounder_algorithm:
             coef = []
             pca = w
             # Bootstrap to calculate the coefs
-            print('DICT?',b)
             for i in range(b):
                 rows = np.random.choice(self.X_train.shape[0], int(self.X_train.shape[0] * 0.85), replace=False)
-                print('CLASS WEIGHT', class_weight)
                 coef_, _ = self.OutcomeModel_LR(pca, rows, roc_flag=False, class_weight=class_weight)
                 coef.append(coef_)
             coef = np.matrix(coef)
