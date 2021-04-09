@@ -84,10 +84,11 @@ class BART:
             Ot0 = y_pred_full[rows0]
             It1 = y_pred_fulli[rows0]
             It0 = y_pred_fulli[rows1]
+            print('Original 0 and 1', Ot0[0:5],Ot1[0:5])
+            print('Internet 0 and 1', It0[0:5],It1[0:5])
             assert len(It1) + len(It0) == len(y_pred_fulli), 'CATE: Wrong Dimensions'
             assert len(Ot1) + len(Ot0) == len(y_pred_full), 'CATE: Wrong Dimensions'
             if not boostrap:
-                print(t, np.concatenate([Ot1, It1], 0)[0:5], np.concatenate([Ot0, It0], 0)[0:5])
                 bart_cate[t] = np.concatenate([Ot1, It1], 0).mean() - np.concatenate([Ot0, It0], 0).mean()
             else:
                 bart_cate[t], bart_cate_error[t] = boostrap_cate(np.concatenate([Ot1, It1], 0) - np.concatenate([Ot0, It0], 0), b)
