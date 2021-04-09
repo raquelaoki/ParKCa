@@ -37,7 +37,7 @@ class Data(object):
         self.X_test = X_test.values
         self.y_test = y_test
         # print('X _train shape', self.X_train.shape, binfeats)
-        self.binfeats = range(self.X_train.shape[1] - 1) if binfeats is None else binfeats
+        self.binfeats = range(self.X_train.shape[1] - 1) if binfeats is None else np.delete(np.array(binfeats),-1)
         # print('From data initialization', len(self.binfeats))
         self.contfeats = [] if contfeats is None else list(contfeats)  # which features are continuous
         # print('continuous', list(contfeats))
@@ -297,7 +297,6 @@ class CEVAE():
         self.treatments_columns = treatments_columns
         # print('From cevae ini', len(binfeats))
         self.dataset = Data(X_train, X_test, y_train, y_test, treatments_columns, batch, binfeats, contfeats)
-        print('here', len(binfeats), binfeats)
         self.z_dim = z_dim
         self.h_dim = h_dim
         self.epochs = epochs
@@ -369,7 +368,7 @@ class CEVAE():
         # t is not feed into network, therefore not increasing input size (y is fed).
         q_y_xt_dist = q_y_xt(dim_in=x_dim - 1, nh=3, dim_h=self.h_dim, dim_out=1).cuda()
         #print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) +1)
-        q_z_tyx_dist = q_z_tyx(dim_in=len(self.dataset.binfeats) + len(self.dataset.contfeats), nh=3,
+        q_z_tyx_dist = q_z_tyx(dim_in=len(self.dataset.binfeats) + len(self.dataset.contfeats)+1, nh=3,
                                dim_h=self.h_dim,
                                dim_out=self.z_dim).cuda()  # remove an 1 from dim_in
         p_z_dist = normal.Normal(torch.zeros(self.z_dim).cuda(), torch.ones(self.z_dim).cuda())
