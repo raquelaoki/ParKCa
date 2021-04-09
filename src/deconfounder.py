@@ -59,6 +59,7 @@ class deconfounder_algorithm:
             # Bootstrap to calculate the coefs
             for i in range(b):
                 rows = np.random.choice(self.X_train.shape[0], int(self.X_train.shape[0] * 0.85), replace=False)
+                print('CLASS WEIGHT', class_weight)
                 coef_, _ = self.OutcomeModel_LR(pca, rows, roc_flag=False, class_weight=class_weight)
                 coef.append(coef_)
             coef = np.matrix(coef)
