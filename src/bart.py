@@ -4,6 +4,7 @@ import warnings
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_curve
 import sys
 
+
 class BART:
     def __init__(self, X_train, X_test, y_train, y_test):
         super(BART, self).__init__()
@@ -13,7 +14,6 @@ class BART:
         self.y_test = np.array(y_test)
         self.model = None
         print('Running BART')
-
 
     def Find_Optimal_Cutoff(self, target, predicted):
         """ Find the optimal probability cutoff point for a classification model related to event rate
@@ -38,7 +38,7 @@ class BART:
         try:
             sys.path.insert(0, 'bartpy/')
             from bartpy.sklearnmodel import SklearnModel
-            print('... SklearnModel Loaded')
+            print('... SklearnModel Loaded', n_trees, n_burn)
         except NameError:
             print('BART Library Missing')
             print("Check: https://github.com/JakeColtman/bartpy")
@@ -81,17 +81,16 @@ class BART:
                 else:
                     rows0.append(i)
             Ot1 = y_pred_full[rows1]
-            Ot0 = y_pred_full[rows0]
-            It1 = y_pred_fulli[rows0]
+            #Ot0 = y_pred_full[rows0]
+            #It1 = y_pred_fulli[rows0]
             It0 = y_pred_fulli[rows1]
-            print('Original 0 and 1', Ot0[0:5],Ot1[0:5])
-            print('Internet 0 and 1', It0[0:5],It1[0:5])
-            assert len(It1) + len(It0) == len(y_pred_fulli), 'CATE: Wrong Dimensions'
-            assert len(Ot1) + len(Ot0) == len(y_pred_full), 'CATE: Wrong Dimensions'
+            print('Flip to 0 and Original 1', It0[0:5], Ot1[0:5])
+            #assert len(It1) + len(It0) == len(y_pred_fulli), 'CATE: Wrong Dimensions'
+            #assert len(Ot1) + len(Ot0) == len(y_pred_full), 'CATE: Wrong Dimensions'
             if not boostrap:
-                bart_cate[t] = np.concatenate([Ot1, It1], 0).mean() - np.concatenate([Ot0, It0], 0).mean()
+                bart_cate[t] = Ot1.mean() - It0.mean()
             else:
-                bart_cate[t], bart_cate_error[t] = boostrap_cate(np.concatenate([Ot1, It1], 0) - np.concatenate([Ot0, It0], 0), b)
+                bart_cate[t], bart_cate_error[t] = boostrap_cate(Ot1 - nIt0, b)
 
         if boostrap:
             return bart_cate, bart_cate_error
@@ -101,6 +100,6 @@ class BART:
     def boostrap_cate(self, dif, b):
         bart_cate_boostrap = np.zeros(b)
         for i in range(b):
-            dif0 = random.choice(b, int(len(dif)*0.7))
+            dif0 = random.choice(b, int(len(dif) * 0.7))
             bart_cate_boostrap[i] = dif0.mean()
         return bart_cate_boostrap.mean(), np.std(bart_cate_boostrap)
