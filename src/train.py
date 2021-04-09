@@ -71,7 +71,10 @@ def learners(LearnersList, X, y, TreatCols=None, colnamesX=None, id='', Z=None, 
         b = 100
         for k in k_list:
             print('...... Version 1/', len(k_list))
-            coln = 'DA_' + str(id) + str(k)
+            if len(k_list) > 1:
+                coln = 'DA_' + str(id) + str(k)
+            else:
+                coln = 'DA'
             # coefk_table = pd.DataFrame(columns=[causes])
             model_da = DA(X_train, X_test, y_train, y_test, 10)
             coef, coef_continuos, roc = model_da.fit()
