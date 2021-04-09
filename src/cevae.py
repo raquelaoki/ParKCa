@@ -255,7 +255,7 @@ class q_z_tyx(nn.Module):
         self.nh = nh
 
         # Shared layers with separated output layers
-        print('CHecking input:', dim_in)
+        #print('CHecking input:', dim_in)
         self.input = nn.Linear(dim_in, dim_h)
         # loop through dimensions to create fully con. hidden layers, add params with ModuleList
         self.hidden = nn.ModuleList([nn.Linear(dim_h, dim_h) for _ in range(nh)])
@@ -268,7 +268,7 @@ class q_z_tyx(nn.Module):
 
     def forward(self, xy, t):
         # Shared layers with separated output layers
-        print(' before elu Checking:', xy.shape)
+        #print(' before elu Checking:', xy.shape)
         x = F.elu(self.input(xy))
         for i in range(self.nh):
             x = F.elu(self.hidden[i](x))
@@ -367,8 +367,8 @@ class CEVAE():
         q_t_x_dist = q_t_x(dim_in=x_dim - 1, nh=1, dim_h=self.h_dim, dim_out=1).cuda()
         # t is not feed into network, therefore not increasing input size (y is fed).
         q_y_xt_dist = q_y_xt(dim_in=x_dim - 1, nh=3, dim_h=self.h_dim, dim_out=1).cuda()
-        print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) +1)
-        q_z_tyx_dist = q_z_tyx(dim_in=len(self.dataset.binfeats) + len(self.dataset.contfeats)+1, nh=3,
+        #print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) +1)
+        q_z_tyx_dist = q_z_tyx(dim_in=len(self.dataset.binfeats) + len(self.dataset.contfeats), nh=3,
                                dim_h=self.h_dim,
                                dim_out=self.z_dim).cuda()  # remove an 1 from dim_in
         p_z_dist = normal.Normal(torch.zeros(self.z_dim).cuda(), torch.ones(self.z_dim).cuda())
