@@ -81,6 +81,7 @@ def init_qz(qz, pz, data_loader):
     optimizer = optim.Adam(qz.parameters(), lr=0.001)
     for i in range(50):
         xy = torch.cat((batch[0], batch[2]), 1)
+        print('XY',xy.shape)
         z_infer = qz(xy=xy, t=batch[1])
         KLqp = (-torch.log(z_infer.stddev) + 1 / 2 * (z_infer.variance + z_infer.mean ** 2 - 1)).sum(1)
         optimizer.zero_grad()
@@ -366,7 +367,7 @@ class CEVAE():
         q_t_x_dist = q_t_x(dim_in=x_dim - 1, nh=1, dim_h=self.h_dim, dim_out=1).cuda()
         # t is not feed into network, therefore not increasing input size (y is fed).
         q_y_xt_dist = q_y_xt(dim_in=x_dim - 1, nh=3, dim_h=self.h_dim, dim_out=1).cuda()
-        # print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) )
+        print('MY DIMENSION IS',len(self.dataset.binfeats) , len(self.dataset.contfeats) +1)
         q_z_tyx_dist = q_z_tyx(dim_in=len(self.dataset.binfeats) + len(self.dataset.contfeats)+1, nh=3,
                                dim_h=self.h_dim,
                                dim_out=self.z_dim).cuda()  # remove an 1 from dim_in

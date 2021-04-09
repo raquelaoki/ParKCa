@@ -81,12 +81,8 @@ class BART:
                 else:
                     rows0.append(i)
             Ot1 = y_pred_full[rows1]
-            #Ot0 = y_pred_full[rows0]
-            #It1 = y_pred_fulli[rows0]
             It0 = y_pred_fulli[rows1]
             print('Flip to 0 and Original 1', It0[0:5], Ot1[0:5])
-            #assert len(It1) + len(It0) == len(y_pred_fulli), 'CATE: Wrong Dimensions'
-            #assert len(Ot1) + len(Ot0) == len(y_pred_full), 'CATE: Wrong Dimensions'
             if not boostrap:
                 bart_cate[t] = Ot1.mean() - It0.mean()
             else:
