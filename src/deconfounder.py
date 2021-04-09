@@ -29,7 +29,7 @@ class deconfounder_algorithm:
         self.k = k
         print('Running DA')
 
-    def fit(self, b=100, holdout_prop=0.2, alpha=0.05):
+    def fit(self, b=100, holdout_prop=0.2, alpha=0.05,class_weight={0:1,0:1}):
         """
         Implementation of the Deconfounder Algorthm with Prob PCA and Logistic Regression
         Contains: Prob PCA function, Predictive Check and Outcome Model
@@ -55,13 +55,11 @@ class deconfounder_algorithm:
             print('... Pass Predictive Check: ' + str(pvalue))
             print('... Fitting Outcome Model')
             coef = []
-            #pca = np.transpose(z)
             pca = w
-            #print('line 56 pca', pca.shape)
             # Bootstrap to calculate the coefs
             for i in range(b):
                 rows = np.random.choice(self.X_train.shape[0], int(self.X_train.shape[0] * 0.85), replace=False)
-                coef_, _ = self.OutcomeModel_LR(pca, rows, roc_flag=False)
+                coef_, _ = self.OutcomeModel_LR(pca, rows, roc_flag=False, class_weight=class_weight)
                 coef.append(coef_)
             coef = np.matrix(coef)
             coef = coef[:, 0:self.X_train.shape[1]]  # ?
@@ -202,7 +200,7 @@ class deconfounder_algorithm:
             pvals[i] = np.mean(np.array(x_val_current < x_gen_current))
         return np.mean(pvals)
 
-    def OutcomeModel_LR(self, pca, rows=None, roc_flag=True):
+    def OutcomeModel_LR(self, pca, rows=None, roc_flag=True, class_weight={0:1, 1:1}):
         """
         outcome model from the DA
         input:
@@ -212,7 +210,7 @@ class deconfounder_algorithm:
         """
         import scipy.stats as st
         model = linear_model.SGDClassifier(penalty='l2', alpha=0.1, l1_ratio=0.01, loss='modified_huber',
-                                           fit_intercept=True, random_state=0)
+                                           fit_intercept=True, random_state=0, class_weight=class_weight)
         if roc_flag:
             rows_train = range(self.X_train.shape[0])
             rows_test = range(self.X_train.shape[0] , self.X_train.shape[0] + self.X_test.shape[0] )

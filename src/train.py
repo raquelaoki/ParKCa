@@ -57,12 +57,10 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
         TreatCols = list(range(X.shape[1]))
 
     #check if binary treatments
-    newX01 = False
     X01 = X.copy()
     for col in TreatCols:
         a = X01.iloc[col]
         if ((a == 0) | (a == 1)).all():
-            newX01 = True
             mean_v = np.mean(X01.iloc[col])
             X01.iloc[col] = [1 if i > mean_v else 0 for i in X01.iloc[col]]
         else:
