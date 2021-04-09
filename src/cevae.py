@@ -297,6 +297,7 @@ class CEVAE():
         self.treatments_columns = treatments_columns
         # print('From cevae ini', len(binfeats))
         self.dataset = Data(X_train, X_test, y_train, y_test, treatments_columns, batch, binfeats, contfeats)
+        print('here', len(binfeats), binfeats)
         self.z_dim = z_dim
         self.h_dim = h_dim
         self.epochs = epochs
