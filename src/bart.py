@@ -17,6 +17,7 @@ class BART:
         try:
             sys.path.insert(0, 'bartpy/')
             from bartpy.sklearnmodel import SklearnModel
+            print('... SklearnModel Loaded')
         except NameError:
             print('BART Library Missing')
             print("Check: https://github.com/JakeColtman/bartpy")
