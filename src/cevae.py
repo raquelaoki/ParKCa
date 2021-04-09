@@ -81,7 +81,7 @@ def init_qz(qz, pz, data_loader):
     optimizer = optim.Adam(qz.parameters(), lr=0.001)
     for i in range(50):
         xy = torch.cat((batch[0], batch[2]), 1)
-        print('XY',xy.shape)
+        #print('XY',xy.shape)
         z_infer = qz(xy=xy, t=batch[1])
         KLqp = (-torch.log(z_infer.stddev) + 1 / 2 * (z_infer.variance + z_infer.mean ** 2 - 1)).sum(1)
         optimizer.zero_grad()
@@ -358,7 +358,7 @@ class CEVAE():
         # try:
         # init networks (overwritten per replication)
         x_dim = len(self.dataset.binfeats) + len(self.dataset.contfeats)+1
-        # print('line 359', x_dim)
+        print('line 361', x_dim,len(self.dataset.binfeats) , len(self.dataset.contfeats))
         # print('From initialization:', self.z_dim, len(self.dataset.binfeats))
         p_x_z_dist = p_x_z(dim_in=self.z_dim, nh=3, dim_h=self.h_dim, dim_out_bin=len(self.dataset.binfeats),
                            dim_out_con=len(self.dataset.contfeats)).cuda()
