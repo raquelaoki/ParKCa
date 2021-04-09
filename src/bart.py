@@ -14,14 +14,6 @@ class BART:
         self.model = None
         print('Running BART')
 
-        try:
-            sys.path.insert(0, 'bartpy/')
-            from bartpy.sklearnmodel import SklearnModel
-            print('... SklearnModel Loaded')
-        except NameError:
-            print('BART Library Missing')
-            print("Check: https://github.com/JakeColtman/bartpy")
-            sys.exit()
 
     def Find_Optimal_Cutoff(self, target, predicted):
         """ Find the optimal probability cutoff point for a classification model related to event rate
@@ -43,6 +35,15 @@ class BART:
         return list(roc_t['threshold'])
 
     def fit(self, n_trees=50, n_burn=100):
+        try:
+            sys.path.insert(0, 'bartpy/')
+            from bartpy.sklearnmodel import SklearnModel
+            print('... SklearnModel Loaded')
+        except NameError:
+            print('BART Library Missing')
+            print("Check: https://github.com/JakeColtman/bartpy")
+            sys.exit()
+            
         model = SklearnModel(n_trees=n_trees, n_burn=n_burn, n_chains=1, n_jobs=1)
         model.fit(self.X_train, self.y_train)
         y_train_pred = model.predict(self.X_train)  # [:,0:1000] Make predictions on the train set
