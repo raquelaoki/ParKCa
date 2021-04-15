@@ -10,7 +10,7 @@ Use as [reference](https://github.com/raquelaoki/Summer2020MultipleCauses/blob/m
 ```python
 from ParKCa.src.deconfounder import deconfounder_algorithm as DA
 model_da = DA(X_train, X_test, y_train, y_test, k=10)
-coef, coef_continuos, roc = model_da.fit()
+coef, coef_continuos, roc, _ = model_da.fit()
 ```
 2. BART
 
@@ -26,5 +26,5 @@ model_bart.fit()
 from ParKCa.src.cevae import CEVAE 
 model_cevae = CEVAE(X_train, X_test, y_train, y_test, TreatCols,
                                 binfeats=binfeatures, contfeats=confeatures)
-cate = model_cevae.fit_all()
+cate, _ = model_cevae.fit_all()
 ```
