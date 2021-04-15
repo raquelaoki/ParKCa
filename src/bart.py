@@ -64,7 +64,7 @@ class BART:
         self.f1_test = f1_score(self.y_test, y_test_pred01)
 
     def cate(self, TreatmentColumns, boostrap=False, b=30, print_=True):
-        print('CATE In progress')
+        print('... CATE')
         if len(TreatmentColumns) > 50:
             print("CATE is very time consuming - not suitable for large number of treatments")
         X = np.concatenate([self.X_train, self.X_test], axis=0)
