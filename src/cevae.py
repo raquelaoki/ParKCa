@@ -326,7 +326,7 @@ class CEVAE():
         roc_t = roc.iloc[(roc.tf - 0).abs().argsort()[:1]]
         return list(roc_t['threshold'])
 
-    def fit_all(self):
+    def fit_all(self, print_=True):
         cevae_cate = np.zeros(len(self.treatments_columns))
         f1, fpr, tpr, auc = [], [], [], []
         except_error = 0
@@ -346,13 +346,9 @@ class CEVAE():
             except ValueError:
                 cevae_cate[i] = np.nan
                 except_error += 1
-
-        print('... Evaluation (average ', len(f1), ' treatments): F1 =', np.mean(f1), ' Errors:',except_error)
-        # roc = {'learners': 'CEVAE',
-        #       'fpr': np.mean(fpr),
-        #       'tpr': np.mean(tpr),
-        #       'auc': np.mean(auc)}
-        return cevae_cate  # , roc
+        if print_:
+            print('... Evaluation (average ', len(f1), ' treatments): F1 =', np.mean(f1), ' Errors:',except_error)
+        return cevae_cate, np.mean(f1)
 
     def fit(self, train_loader, test_loader):
         # try:
@@ -442,7 +438,6 @@ class CEVAE():
 
             # if epoch % self.print_every == 0:
             #    print('Epoch - ', epoch, ' Loss: ', loss_mean)
-            #    # TODO: add eval for validation and training set?
         # Done Training!
         batch = next(iter(test_loader))
         y0, y1 = get_y0_y1(p_y_zt_dist, q_y_xt_dist, q_z_tyx_dist, batch[0].cuda(), batch[1].cuda())

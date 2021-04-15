@@ -15,7 +15,7 @@ tf.enable_eager_execution()
 
 
 class deconfounder_algorithm:
-    def __init__(self, X_train, X_test, y_train, y_test, k=5):
+    def __init__(self, X_train, X_test, y_train, y_test, k=5, print_=True):
         super(deconfounder_algorithm, self).__init__()
         self.X_train = X_train.values
         self.X_test = X_test.values
@@ -28,6 +28,8 @@ class deconfounder_algorithm:
         self.n = self.X.shape[0]
         self.ncol = self.X.shape[1]
         self.k = k
+        self.f1_test = None
+        self.print_ = print_
         print('Running DA')
 
     def fit(self, b=100, holdout_prop=0.2, alpha=0.05, class_weight={0: 1, 0: 1}):
@@ -81,7 +83,7 @@ class deconfounder_algorithm:
             coef_z = []
             roc = []
 
-        return np.multiply(coef_m, coef_z), coef_m, roc
+        return np.multiply(coef_m, coef_z), coef_m, roc, self.f1_test
 
     def daHoldout(self, holdout_portion):
         """
@@ -230,20 +232,22 @@ class deconfounder_algorithm:
             y_train_pred = modelcv.predict(X_train)
 
             y_test_predp1 = [i[1] for i in y_test_predp]
-            print('\n... Leaner Evaluation:')
+            if self.print_:
+                print('\n... Evaluation:')
 
-            print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred),
-                  sum(y_train_pred), sum(self.y_train))
-            print('...... confusion matrix: \n', confusion_matrix(self.y_train, y_train_pred).ravel())
+                print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred),
+                      sum(y_train_pred), sum(self.y_train))
+                print('...... confusion matrix: \n', confusion_matrix(self.y_train, y_train_pred).ravel())
 
-            print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred), sum(y_test_pred), sum(self.y_test))
-            print('...... confusion matrix: \n', confusion_matrix(self.y_test, y_test_pred).ravel())
+                print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred), sum(y_test_pred), sum(self.y_test))
+                print('...... confusion matrix: \n', confusion_matrix(self.y_test, y_test_pred).ravel())
             fpr, tpr, _ = roc_curve(self.y_test, y_test_predp1)
             auc = roc_auc_score(self.y_test, y_test_predp1)
             roc = {'learners': 'DA',
                    'fpr': fpr,
                    'tpr': tpr,
                    'auc': auc}
+            self.f1_test = f1_score(self.y_test, y_test_pred)
         else:
             x_aug = np.concatenate([self.X_train[rows, :], pca[rows, :]], axis=1)
             y = [self.y_train[i] for i in rows]

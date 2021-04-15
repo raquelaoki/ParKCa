@@ -28,10 +28,10 @@ from tensorflow.keras import optimizers
 import tensorflow_probability as tfp
 from tensorflow_probability import distributions as tfd  # conda install -c conda-forge tensorflow-probability
 
-
 tf.disable_v2_behavior()
 tf.enable_eager_execution()
 warnings.simplefilter("ignore")
+
 
 # DA
 # Meta-leaners packages
@@ -56,7 +56,7 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
     if TreatCols is None:
         TreatCols = list(range(X.shape[1]))
 
-    #check if binary treatments
+    # check if binary treatments
     X01 = X.copy()
     for col in TreatCols:
         a = X01.iloc[col]
@@ -66,9 +66,10 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
         else:
             pass
 
-    X_train, X_test, y_train, y_test, X_train01, X_test01 = train_test_split(X, y, X01, test_size=0.33, random_state=seed)
+    X_train, X_test, y_train, y_test, X_train01, X_test01 = train_test_split(X, y, X01, test_size=0.33,
+                                                                             random_state=seed)
     coef_table = pd.DataFrame(columns=['causes'])
-    coef_table['causes'] = ['T'+str(i) for i in range(len(TreatCols))]
+    coef_table['causes'] = ['T' + str(i) for i in range(len(TreatCols))]
 
     times = {}
 
@@ -85,13 +86,11 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
                 coln = 'DA_' + str(id) + str(k)
             else:
                 coln = 'DA'
-            # coefk_table = pd.DataFrame(columns=[causes])
             model_da = DA(X_train, X_test, y_train, y_test, 10)
-            coef, coef_continuos, roc = model_da.fit()
-            # roc_table = roc_table.append(roc, ignore_index=True)
+            coef, coef_continuos, roc, _ = model_da.fit()
 
             coef_table[coln] = coef_continuos[0:len(TreatCols)]
-        times['DA'] = time.time()-start_time
+        times['DA'] = time.time() - start_time
         print('Done!')
 
     if 'BART' in LearnersList:
@@ -103,7 +102,7 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
         model_bart = BART(X_train01, X_test01, y_train, y_test)
         model_bart.fit()
         print('...... predictions')
-        coef_table['BART'] = model_bart.cate(TreatCols)
+        coef_table['BART'], _ = model_bart.cate(TreatCols)
         # predictions = model.predict(x_snps)  # [:,0:1000] Make predictions on the train set
         # print(predictions[0])
         times['BART'] = time.time() - start_time
@@ -119,7 +118,7 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
         else:
             nclinical = 0
 
-        if cevaeMax < len(range(nclinical, nclinical+len(TreatCols))):
+        if cevaeMax < len(range(nclinical, nclinical + len(TreatCols))):
             print('... Working with dataset partitions')
             X_train_cevae_c, X_test_cevae_c = X_train01[:, 0:nclinical], X_test01[:, 0:nclinical]
             X_train_cevae_s = X_train01[:, nclinical:X_train.shape[1]]
@@ -130,9 +129,9 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
             count = 0
             while up < X_train_cevae_s.shape[1]:
                 up = np.min([low + cevaeMax, X_train_cevae_s.shape[1]])
-                print('Partition', count, 'low  - up', low, up, ' Progress:', up*100/X_train_cevae_s.shape[1])
+                print('Partition', count, 'low  - up', low, up, ' Progress:', up * 100 / X_train_cevae_s.shape[1])
                 count += 1
-                #if count == 1:
+                # if count == 1:
                 low = 0
                 up = nclinical
                 print('Partition', count, 'low  - up', low, up)
@@ -143,20 +142,20 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
                 X_test_cevae = np.concatenate([X_test_cevae_c, X_test_cevae], 1)
                 model_cevae = CEVAE(X_train_cevae, X_test_cevae, y_train, y_test, treatments, binfeats=treatments,
                                     contfeats=range(len(colnamesZ)))
-                out = model_cevae.fit_all()
+                out, _ = model_cevae.fit_all()
                 cate.append(out)
                 low = up
                 np.save('cevae_cate_checkpoints_z', cate)
                 print('SAVED!')
-                #else:
+                # else:
                 #    low = up
             cate = [item for sublist in cate for item in sublist]
         else:
-            print('Not using Partitions', cevaeMax, len(range(nclinical, nclinical+len(TreatCols))))
+            print('Not using Partitions', cevaeMax, len(range(nclinical, nclinical + len(TreatCols))))
             # treatments = range(nclinical, nclinical+len(TreatCols))
             model_cevae = CEVAE(X_train, X_test, y_train, y_test, TreatCols,
                                 binfeats=binfeatures, contfeats=confeatures)
-            cate = model_cevae.fit_all()
+            cate, _ = model_cevae.fit_all()
         coef_table['CEVAE'] = cate
         np.save('level1data_learnersout_cevae', coef_table)
         times['CEVAE'] = time.time() - start_time
@@ -167,7 +166,7 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
         start_time = time.time()
         coef_table['noise'] = np.random.normal(0, 1, len(colnamesX))
         print(coef_table.head())
-        #np.save('level1data_learnersout', coef_table)
+        # np.save('level1data_learnersout', coef_table)
         times['noise'] = time.time() - start_time
     np.save('level1data_learnersout', coef_table)
 
@@ -175,6 +174,7 @@ def learners(LearnersList, X, y, seed=63, TreatCols=None, colnamesX=None, id='',
         return coef_table
     else:
         return coef_table, times
+
 
 def meta_learner(level1data, MetaLearnerList, target='y_out', prob=1, ensemble=False, print_out=False):
     """
@@ -499,4 +499,3 @@ def data_norm(data1):
     data1o.index = data1.index
     data1o.columns = data1.columns
     return data1o
-

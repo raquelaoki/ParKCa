@@ -13,6 +13,7 @@ class BART:
         self.y_train = np.array(y_train)
         self.y_test = np.array(y_test)
         self.model = None
+        self.f1_test = None
         print('Running BART')
 
     def Find_Optimal_Cutoff(self, target, predicted):
@@ -34,7 +35,7 @@ class BART:
         roc_t = roc.iloc[(roc.tf - 0).abs().argsort()[:1]]
         return list(roc_t['threshold'])
 
-    def fit(self, n_trees=50, n_burn=100):
+    def fit(self, n_trees=50, n_burn=100, print_=True):
         try:
             sys.path.insert(0, 'bartpy/')
             from bartpy.sklearnmodel import SklearnModel
@@ -51,16 +52,18 @@ class BART:
         thhold = self.Find_Optimal_Cutoff(self.y_train, y_train_pred)
         y_train_pred01 = [0 if item < thhold else 1 for item in y_train_pred]
         y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
-        print('... Evaluation:')
-        print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred01))
-        print('...... confusion matrix: ', confusion_matrix(self.y_train, y_train_pred01).ravel())
+        if print_:
+            print('... Evaluation:')
+            print('... Training set: F1 - ', f1_score(self.y_train, y_train_pred01))
+            print('...... confusion matrix: ', confusion_matrix(self.y_train, y_train_pred01).ravel())
 
-        print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
-        print('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
+            print('... Testing set: F1 - ', f1_score(self.y_test, y_test_pred01))
+            print('...... confusion matrix: ', confusion_matrix(self.y_test, y_test_pred01).ravel())
         assert isinstance(model, object)
         self.model = model
+        self.f1_test = f1_score(self.y_test, y_test_pred01)
 
-    def cate(self, TreatmentColumns, boostrap=False, b=30):
+    def cate(self, TreatmentColumns, boostrap=False, b=30, print_=True):
         print('CATE In progress')
         if len(TreatmentColumns) > 50:
             print("CATE is very time consuming - not suitable for large number of treatments")
@@ -82,16 +85,17 @@ class BART:
                     rows0.append(i)
             Ot1 = y_pred_full[rows1]
             It0 = y_pred_fulli[rows1]
-            print('Flip to 0 and Original 1', It0[0:5], Ot1[0:5])
+            if print_:
+                print('Flip to 0 and Original 1', It0[0:5], Ot1[0:5])
             if not boostrap:
                 bart_cate[t] = Ot1.mean() - It0.mean()
             else:
                 bart_cate[t], bart_cate_error[t] = boostrap_cate(Ot1 - nIt0, b)
 
         if boostrap:
-            return bart_cate, bart_cate_error
+            return bart_cate, self.f1_test, bart_cate_error
         else:
-            return bart_cate
+            return bart_cate, self.f1_test
 
     def boostrap_cate(self, dif, b):
         bart_cate_boostrap = np.zeros(b)
