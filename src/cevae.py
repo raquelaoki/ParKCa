@@ -13,7 +13,6 @@ from torch.distributions import bernoulli, normal
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
 from collections import defaultdict
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
