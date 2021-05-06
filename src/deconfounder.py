@@ -30,6 +30,10 @@ class deconfounder_algorithm:
         self.k = k
         self.f1_test = None
         self.print_ = print_
+        if len(np.unique(y)) == 2:
+            self.binarytarget = True
+        else:
+            self.binarytarget = False
         print('Running DA')
 
     def fit(self, b=100, holdout_prop=0.2, alpha=0.05, class_weight={0: 1, 0: 1}):
@@ -62,7 +66,10 @@ class deconfounder_algorithm:
             # Bootstrap to calculate the coefs
             for i in range(b):
                 rows = np.random.choice(self.X_train.shape[0], int(self.X_train.shape[0] * 0.85), replace=False)
-                coef_, _ = self.OutcomeModel_LR(pca, rows, roc_flag=False, class_weight=class_weight)
+                if self.binarytarget:
+                    coef_, _ = self.OutcomeModel_LR(pca, rows, roc_flag=False, class_weight=class_weight)
+                else:
+                    coef_, _ = self.OutcomeModel_Regression(pca, rows, roc_flag=False)
                 coef.append(coef_)
             coef = np.matrix(coef)
             coef = coef[:, 0:self.X_train.shape[1]]  # ?
@@ -76,7 +83,10 @@ class deconfounder_algorithm:
             # if ROC = TRUE, calculate ROC results and score is just for testing set
             del coef_var, coef, coef_
             # w, z, x_gen = FM_Prob_PCA(train, k, False)
-            _, roc = self.OutcomeModel_LR(pca, roc_flag=True)
+            if self.binarytarget:
+                _, roc = self.OutcomeModel_LR(pca, roc_flag=True)
+            else:
+                _, roc = self.OutcomeModel_Regression(pca, roc_flag=True)
         else:
             print('Failed on Predictive Check. Suggetions: trying a different K')
             coef_m = []
@@ -248,6 +258,52 @@ class deconfounder_algorithm:
                    'tpr': tpr,
                    'auc': auc}
             self.f1_test = f1_score(self.y_test, y_test_pred)
+        else:
+            x_aug = np.concatenate([self.X_train[rows, :], pca[rows, :]], axis=1)
+            y = [self.y_train[i] for i in rows]
+            model.fit(x_aug, y)
+            coef = model.coef_[0]
+            roc = {}
+        return coef, roc
+
+    def OutcomeModel_Regression(self, pca, rows=None, roc_flag=True, class_weight={0: 1, 1: 1}):
+        """
+        outcome model from the DA
+        input:
+        - x: training set
+        - x_latent: output from factor model
+        - y01: outcome
+        """
+        import scipy.stats as st
+        model = linear_model.LinearRegression(penalty='l2', fit_intercept=True, random_state=0)
+        if roc_flag:
+            rows_train = range(self.X_train.shape[0])
+            rows_test = range(self.X_train.shape[0], self.X_train.shape[0] + self.X_test.shape[0])
+            assert len(rows_train) == len(self.y_train), "Error training set dimensions"
+            assert len(rows_test) == len(self.y_test), "Error testing set dimensions"
+
+            # print('line 220',self.X_train.shape, pca.shape, rows_train,rows_test)
+            X_train = np.concatenate([self.X_train, pca[rows_train, :]], axis=1)
+            X_test = np.concatenate([self.X_test, pca[rows_test, :]], axis=1)
+
+            modelcv = model.fit(X_train, self.y_train)
+            coef = []
+            y_test_pred = modelcv.predict(X_test)
+            y_train_pred = modelcv.predict(X_train)
+
+            if self.print_:
+                print('\n... Evaluation:')
+
+                print('... Training set: F1 - ', mean_squared_error(self.y_train, y_train_pred))
+                print('... Testing set: F1 - ', mean_squared_error(self.y_test, y_test_pred))
+            # fpr, tpr, _ = roc_curve(self.y_test, y_test_predp1)
+            # auc = roc_auc_score(self.y_test, y_test_predp1)
+            mse = mean_squared_error(self.y_test, y_test_pred)
+            roc = {'learners': 'DA',
+                   'fpr': mse,
+                   'tpr': mse,
+                   'auc': mse}
+            self.f1_test = mse
         else:
             x_aug = np.concatenate([self.X_train[rows, :], pca[rows, :]], axis=1)
             y = [self.y_train[i] for i in rows]
