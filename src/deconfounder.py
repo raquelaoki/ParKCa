@@ -275,7 +275,7 @@ class deconfounder_algorithm:
         - y01: outcome
         """
         import scipy.stats as st
-        model = linear_model.LinearRegression(fit_intercept=True, random_state=0)
+        model = linear_model.LinearRegression(fit_intercept=True)
         if roc_flag:
             rows_train = range(self.X_train.shape[0])
             rows_test = range(self.X_train.shape[0], self.X_train.shape[0] + self.X_test.shape[0])
