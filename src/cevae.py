@@ -291,10 +291,11 @@ class CEVAE():
                  treatments_columns, z_dim=20,
                  h_dim=64, epochs=25, batch=100, lr=0.001,
                  decay=0.001, print_every=50,
-                 binfeats=None, contfeats=None):
+                 binfeats=None, contfeats=None, binarytarget=True):
         super(CEVAE, self).__init__()
         self.treatments_columns = treatments_columns
         # print('From cevae ini', len(binfeats))
+        print('how is the y here in line 298', y_train)
         self.dataset = Data(X_train, X_test, y_train, y_test, treatments_columns, batch, binfeats, contfeats)
         self.z_dim = z_dim
         self.h_dim = h_dim
@@ -304,6 +305,7 @@ class CEVAE():
         self.decay = decay
         self.print_every = print_every
         self.scaler = MinMaxScaler(feature_range=(0, 1))
+        self.binarytarget = binarytarget
         #print('...Shapes:', X_train.shape)
 
     def Find_Optimal_Cutoff(self, target, predicted):
@@ -443,5 +445,8 @@ class CEVAE():
         batch = next(iter(test_loader))
         y0, y1 = get_y0_y1(p_y_zt_dist, q_y_xt_dist, q_z_tyx_dist, batch[0].cuda(), batch[1].cuda())
         y01_pred = q_y_xt_dist(batch[0].cuda(), batch[1].cuda())
-        y_pred = self.scaler.fit_transform(y01_pred.mean.cpu().detach().numpy())
+        if self.binarytarget:
+            y_pred = self.scaler.fit_transform(y01_pred.mean.cpu().detach().numpy())
+        else:
+            y_pred = y01_pred.mean.cpu().detach().numpy()
         return y0[:, 0].mean(), y1[:, 0].mean(), (y1[:, 0] - y0[:, 0]).mean(), y_pred, batch[2]
