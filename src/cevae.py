@@ -333,7 +333,8 @@ class CEVAE():
             # train contains: X, t, y
             try:
                 y0, y1, cevae_cate[i], y_test_pred, y_test = self.fit(train_loader, test_loader)
-                # print(y_test_pred, y_test )
+                print('line 336')
+                print(y_test_pred, y_test)
                 thhold = self.Find_Optimal_Cutoff(y_test, y_test_pred)
                 y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
                 # vprint('y0 and y1',y0, y1,' predictions', y_test_pred[0:10], 'real value', y_test)
@@ -343,6 +344,7 @@ class CEVAE():
                 fpr.append(fpri)
                 tpr.append(tpri)
             except ValueError:
+                print('except line 346')
                 cevae_cate[i] = np.nan
                 except_error += 1
         if print_:
