@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from collections import defaultdict
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
-from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.metrics import roc_curve, roc_auc_score, mean_squared_error
 
 print('Available devices ', torch.cuda.device_count())
 print('Current cuda device ', torch.cuda.current_device())
@@ -295,7 +295,6 @@ class CEVAE():
         super(CEVAE, self).__init__()
         self.treatments_columns = treatments_columns
         # print('From cevae ini', len(binfeats))
-        print('how is the y here in line 298', y_train)
         self.dataset = Data(X_train, X_test, y_train, y_test, treatments_columns, batch, binfeats, contfeats)
         self.z_dim = z_dim
         self.h_dim = h_dim
@@ -335,16 +334,22 @@ class CEVAE():
             # train contains: X, t, y
             try:
                 y0, y1, cevae_cate[i], y_test_pred, y_test = self.fit(train_loader, test_loader)
-                print('line 336')
-                print(y_test_pred, y_test)
-                thhold = self.Find_Optimal_Cutoff(y_test, y_test_pred)
-                y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
-                # vprint('y0 and y1',y0, y1,' predictions', y_test_pred[0:10], 'real value', y_test)
-                f1.append(f1_score(y_test, y_test_pred01))
-                fpri, tpri, _ = roc_curve(y_test, y_test_pred)
-                auc.append(roc_auc_score(y_test, y_test_pred01))
-                fpr.append(fpri)
-                tpr.append(tpri)
+                #print('line 336')
+                #print(y_test_pred, y_test)
+                if self.binarytarget:
+                    thhold = self.Find_Optimal_Cutoff(y_test, y_test_pred)
+                    y_test_pred01 = [0 if item < thhold else 1 for item in y_test_pred]
+                    f1.append(f1_score(y_test, y_test_pred01))
+                    fpri, tpri, _ = roc_curve(y_test, y_test_pred)
+                    auc.append(roc_auc_score(y_test, y_test_pred01))
+                    fpr.append(fpri)
+                    tpr.append(tpri)
+                else:
+                    rmse = mean_squared_error(y_test, y_test_pred)
+                    f1.append(rmse)
+                    #auc.append(rmse)
+                    #fpr.append(rmse)
+                    #tpr.append(rmse)
             except ValueError:
                 print('except line 346')
                 cevae_cate[i] = np.nan
